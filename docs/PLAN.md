@@ -12,9 +12,10 @@ An invite-only WhatsApp number that friends and family forward suspicious messag
 - A trace of every run.
 - A weighted eval (a missed scam costs more than a false alarm) plus prompt-injection and multi-image cases, run in CI as a gate on every PR.
 - 3–5 invited users, and at least 15 real forwards handled, at least 5 of them from people other than Shan.
-- The three-step close-out (review pass, Q&A walkthrough, vault note).
+- The repository is public, with nothing personal in it or its history (see "Public repository").
+- The three-step close-out (review pass, Q&A walkthrough, a write-up outside the repo).
 
-**Closes:** gap 3 at full strength (a weighted, adversarial eval as a regression gate), plus harness governance as new evidence for harness roles. It does not close gap 1 (an open-ended loop).
+**What it demonstrates:** a weighted, adversarial eval used as a regression gate, and a governance layer (policy, hooks, approvals, budgets, audit) written by hand around a plain model loop. It is not an open-ended agent: the loop is short and bounded on purpose.
 
 **Target:** about two weeks.
 
@@ -125,7 +126,18 @@ Set in config, not code:
 
 - Forwarded text and images are deleted after **30 days** by a daily cron that runs one SQL delete.
 - Audit log and trace metadata (verdict, signals, rules hit, timings, tokens) are kept.
-- Anything committed to the repo, eval fixtures included, is redacted or altered: no real names, numbers, account details or personal information.
+- Anything committed to the repo, eval fixtures included, follows the public repository rules below.
+
+## Public repository
+
+The repository is public from the start, so every commit is written to be read by anyone.
+
+- **No personal data** in code, fixtures, docs or commit messages. Eval fixtures use invented names and Ofcom's reserved drama numbers (07700 900000–900999).
+- **No live scam links.** Links are defanged (`hxxps://example[.]com`). Fixtures record the lookup results, so the eval is deterministic and never touches a live API or a working link.
+- **No deployment details.** The bot's number, the allowlist, the admin URL and all secrets live in environment variables or the database.
+- **GitHub secret scanning and push protection** are on.
+- **The system prompt and signal list are public by design.** The defences are the templates (the model never writes user-facing text), the gate and the eval, not secrecy.
+- **Licence:** MIT.
 
 ## Eval
 
@@ -156,9 +168,9 @@ Genuine messages are required, and the false-alarm rate has its own ceiling, so 
 **Hard gates:** any injection or multi-image failure fails the run, whatever the weighted score.
 
 **Sources:**
-- Shan's real scam messages (redacted);
+- Shan's real scam messages, redacted to the public repository rules;
 - published examples from official UK sources, preferring Open Government Licence material such as GOV.UK's HMRC phishing examples, with NCSC, Action Fraud, Royal Mail and FCA ScamSmart as further references (paraphrased where not openly licensed);
-- genuine messages (redacted).
+- genuine messages, redacted the same way.
 
 Start with about 25–30 cases. Every real miss becomes a new case.
 
