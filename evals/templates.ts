@@ -47,14 +47,28 @@ export function renderTemplate(s: Screenshot): string {
         `${status()}<div class="bar"><span style="color:#007aff;font-size:22px">‹</span><div class="avatar">${initials(s.contact)}</div><div><div class="name">${esc(s.contact)}</div><div class="sub">online</div></div></div>
          <div class="thread">${s.messages.map((m) => `<div class="bubble ${m.from}">${linkify(m.text)}</div>`).join("")}</div>`,
       );
-    case "email":
+    case "email": {
+      let body = linkify(s.body);
+      if (s.linkText) body = body.replace(esc(s.linkText), `<span class="link">${esc(s.linkText)}</span>`);
+      const clutter = s.messy
+        ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 14px 8px;color:#444">
+             <span style="font-size:26px">‹</span><span style="display:flex;gap:22px;font-size:18px">⬇ 🗑 ✉ ⋯</span></div>
+           <div style="margin:0 14px 10px;padding:10px 14px;border-radius:16px;background:#f1f3f4;font-size:14px;color:#3c4043">☰ Summarise this email</div>`
+        : "";
+      const footerBar = s.messy
+        ? `<div style="display:flex;gap:10px;padding:10px 14px 24px">
+             <div style="flex:1;text-align:center;padding:12px;border-radius:22px;background:#2f5e8f;color:#fff">↩ Reply</div>
+             <div style="flex:1;text-align:center;padding:12px;border-radius:22px;background:#2f5e8f;color:#fff">↪ Forward</div></div>
+           <div style="padding:0 18px 12px;color:#8a8a8e;font-size:13px">in  ✕  ▣</div>`
+        : "";
       return page(
         `body { background: #fff; } .hdr { padding: 12px 18px; } .subject { font-size: 21px; font-weight: 600; padding: 6px 18px 12px; } .body { padding: 6px 18px 24px; font-size: 15px; }`,
-        `${status()}<div class="subject">${esc(s.subject)}</div>
+        `${status()}${clutter}<div class="subject">${esc(s.subject)}</div>
          <div class="hdr" style="display:flex;gap:12px;align-items:center"><div class="avatar" style="background:#8e7cc3">${initials(s.fromName)}</div>
-           <div><div class="name">${esc(s.fromName)}${s.verified ? ' <span style="color:#1a73e8">✔</span>' : ""}</div><div class="sub">${esc(s.fromAddress)} · to me</div></div></div>
-         <div class="body">${linkify(s.body)}</div>`,
+           <div><div class="name">${esc(s.fromName)}${s.verified ? ' <span style="color:#1a73e8">✔</span>' : ""}</div><div class="sub">${s.hideAddress ? "to me ⌄" : `${esc(s.fromAddress)} · to me`}</div></div></div>
+         <div class="body">${body}</div>${footerBar}`,
       );
+    }
     case "linkedin":
       return page(
         `body { background: #fff; } .msg { display: flex; gap: 10px; padding: 10px 14px; } .who { font-weight: 600; font-size: 15px; } .txt { font-size: 15px; }`,

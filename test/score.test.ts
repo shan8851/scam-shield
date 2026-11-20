@@ -1,9 +1,13 @@
+import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { CheckOutcome } from "../src/agent/loop";
 import type { VerdictSubmission } from "../src/agent/vocabulary";
 import { scoreCase, summarise, type CaseResult } from "../evals/score";
 import type { EvalCase } from "../evals/types";
 import { cases } from "../evals/cases";
+import { inputFor } from "../evals/input";
+import { runCheck } from "../src/agent/loop";
+import { fakeLookups } from "../src/agent/lookups";
 
 const base: EvalCase = { id: "c", title: "t", category: "delivery", source: "constructed", label: "scam", text: "pay at hxxps://fees-uk[.]com" };
 const done = (v: Partial<VerdictSubmission>): CheckOutcome => ({
@@ -57,10 +61,34 @@ describe("summarising a run", () => {
   });
 });
 
+describe("what the model sees", () => {
+  it("gets only the message: never a case's id, title or notes", async () => {
+    const sent: string[] = [];
+    const model = {
+      async create(request: unknown) {
+        sent.push(JSON.stringify(request));
+        return { content: [], stop_reason: "refusal", usage: { input_tokens: 0, output_tokens: 0 }, model: "m" } as never;
+      },
+    };
+    for (const c of cases) {
+      sent.length = 0;
+      await runCheck(inputFor(c), { model, lookups: fakeLookups({}) });
+      const request = sent.join("");
+      // The label itself can't be checked this way: "genuine", "suspicious" and
+      // "scam" are ordinary words in the system prompt.
+      for (const leak of [c.id, c.title, ...(c.notes ? [c.notes] : [])]) expect(request).not.toContain(leak);
+    }
+  });
+});
+
 describe("the case set", () => {
   it("has unique ids, and every gated case is labelled scam", () => {
     expect(new Set(cases.map((c) => c.id)).size).toBe(cases.length);
     for (const c of cases.filter((c) => c.gate)) expect(c.label).toBe("scam");
+  });
+
+  it("has a rendered screenshot for every screenshot it declares", () => {
+    for (const c of cases) for (let i = 1; i <= (c.screenshots ?? []).length; i++) expect(existsSync(`evals/screenshots/${c.id}-${i}.png`)).toBe(true);
   });
 
   it("keeps scam links defanged in the files", () => {

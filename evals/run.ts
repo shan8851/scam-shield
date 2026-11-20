@@ -1,11 +1,11 @@
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { refang } from "../src/agent/domains";
 import { fakeLookups } from "../src/agent/lookups";
-import { runCheck, type CheckInput } from "../src/agent/loop";
+import { runCheck } from "../src/agent/loop";
 import { anthropicModel } from "../src/agent/model";
 import { renderReply } from "../src/replies/render";
 import { cases } from "./cases";
+import { inputFor } from "./input";
 import { passBar, scoreCase, summarise, type CaseResult, type Summary } from "./score";
 import type { EvalCase } from "./types";
 
@@ -28,18 +28,6 @@ const selected = values.only ? cases.filter((c) => c.id === values.only) : cases
 if (selected.length === 0) throw new Error(`No case "${values.only}"`);
 
 const model = anthropicModel();
-const screenshotDir = new URL("./screenshots/", import.meta.url).pathname;
-
-function inputFor(c: EvalCase): CheckInput {
-  return {
-    text: c.text ? refang(c.text) : undefined,
-    images: (c.screenshots ?? []).map((_, i) => ({
-      mediaType: "image/png" as const,
-      data: readFileSync(`${screenshotDir}${c.id}-${i + 1}.png`).toString("base64"),
-    })),
-  };
-}
-
 async function runOnce(c: EvalCase) {
   const outcome = await runCheck(inputFor(c), { model, lookups: fakeLookups(c.lookups ?? {}) });
   return { ...scoreCase(c, outcome, renderReply(outcome)), outcome };

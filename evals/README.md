@@ -19,4 +19,6 @@ pnpm eval:screens               # re-render screenshots after editing a case (ne
 
 **Holdout cases** (`holdout: true`) are scored but only reported in aggregate, so prompt changes can't be fitted to them.
 
+**Labels describe what the forwarded message itself shows**, not what was learned later. A first message that turned out to be a scam is still "suspicious" if nothing in it proves it, and a recruiter who turned out to be real is "genuine" because of what the message shows (their own domain, a normal request), not because of the later conversation.
+
 **Cases** live in `cases/`, one file each. Everything in them is invented or redacted: names, companies and numbers (Ofcom drama range 07700 900xxx). Scam links are defanged in the files and refanged at run time, so defanging can't give the model a hint. Real organisations appear only as themselves on their own domains (for example royalmail.com, gov.uk). **Screenshots** are rendered from the same templates for genuine and scam cases, so how a screenshot looks can't predict its label.

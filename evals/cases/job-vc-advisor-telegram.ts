@@ -5,7 +5,7 @@ export default {
   title: "Vague 'advisor role' at a VC fund that moves to a Telegram group",
   category: "job",
   source: "real_redacted",
-  label: "scam",
+  label: "suspicious",
   screenshots: [
     {
       template: "linkedin",
@@ -19,5 +19,5 @@ export default {
     },
   ],
   lookups: { domainAge: { "telegram.me": { status: "ok", registered: "2013-08-05", ageDays: 4855 } } },
-  notes: "Shan's label: certain scam. Never names the fund, moves to a Telegram group. A known first-stage pattern.",
+  notes: "Later messages proved it a scam (an absurd salary for a few hours a week), but this screenshot alone is labelled by what it shows: an unnamed fund moving to a Telegram group, so suspicious.",
 } satisfies EvalCase;

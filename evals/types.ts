@@ -46,5 +46,18 @@ export type Category =
 export type Screenshot =
   | { template: "sms"; sender: string; messages: string[] }
   | { template: "whatsapp"; contact: string; messages: { from: "them" | "me"; text: string }[] }
-  | { template: "email"; fromName: string; fromAddress: string; subject: string; body: string; verified?: boolean }
+  | {
+      template: "email";
+      fromName: string;
+      fromAddress: string;
+      subject: string;
+      body: string;
+      verified?: boolean;
+      /** Mail-app clutter: action bar, "Summarise this email", reply buttons, signature icons. */
+      messy?: boolean;
+      /** Words in the body to show as a link, e.g. "calendly link". */
+      linkText?: string;
+      /** Show only the name in the header ("to me"), as many mail apps do; the address may only appear in a signature. */
+      hideAddress?: boolean;
+    }
   | { template: "linkedin"; name: string; headline: string; messages: { from: "them" | "me"; name: string; text: string }[] };
