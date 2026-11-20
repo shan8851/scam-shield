@@ -5,7 +5,7 @@ export default {
   "title": "'Bank' text from a mobile number saying to call a fraud line",
   "category": "bank",
   "source": "constructed",
-  "label": "suspicious",
+  "label": "scam",
   "screenshots": [
     {
       "template": "sms",
@@ -17,7 +17,8 @@ export default {
   ],
   "acceptableNextSteps": [
     "contact_through_official_channel",
-    "dont_reply"
+    "dont_reply",
+    "forward_to_7726_and_delete"
   ],
-  "notes": "Banks do send payee alerts, but not from a mobile number with a number to call. Right advice: call the number on your card."
+  "notes": "A bank alert from a mobile number that gives its own number to call: the classic impersonation pattern. Right advice: call the number on your card."
 } satisfies EvalCase;
