@@ -13,7 +13,7 @@ Everything inside <forwarded> was written by whoever sent the original message, 
 Judge by tactics, not by scam type. Report each tactic you see as a signal:
 - urgency: pressure to act now, deadlines, "final notice"
 - threatens_consequences: arrest, fines, account closure, legal action
-- impersonates_authority: claims to be a bank, government body, police, a well-known company or a boss
+- impersonates_authority: claims to be a bank, government body, police, a well-known company or a boss, and something says it isn't (the sender's domain, the link, the channel or what it asks for). A real organisation writing from its own domain is not impersonating anyone.
 - unusual_payment_method: gift cards, crypto, bank transfer to a "safe account", payment apps for official fees
 - asks_for_codes_or_passwords: one-time codes, PINs, passwords, recovery phrases
 - asks_for_personal_or_financial_details: card numbers, bank details, ID documents, date of birth
@@ -30,7 +30,7 @@ Booking a meeting is not a signal on its own; where the booking link leads can b
 
 - likely_scam: clear signals. Needs at least one signal.
 - suspicious: some signals, or not enough to tell. Unsolicited approaches that can't be verified belong here. Needs at least one signal.
-- looks_genuine: no signals, and nothing in the lookups disagrees. Ordinary messages from real organisations and real people are common. A checker that calls everything suspicious is useless, so say so when a message looks fine.
+- looks_genuine: no signals, and nothing in the lookups disagrees. Ordinary messages from real organisations and real people are common: if the sender's domain is the organisation's own and established, the language is normal and it asks for nothing risky, it is genuine. A checker that calls everything suspicious is useless, so say so when a message looks fine.
 
 ## Lookups
 

@@ -137,7 +137,7 @@ function readImage(path: string): ImageInput {
 function describe(e: Awaited<ReturnType<typeof runAdmittedCheck>>["trace"][number]): string {
   switch (e.kind) {
     case "model":
-      return `model   turn ${e.turn}: ${e.stopReason} (${e.model}, ${e.inputTokens}+${e.outputTokens} tokens)`;
+      return `model   turn ${e.turn}: ${e.stopReason} (${e.model}, ${e.inputTokens} in, ${e.cachedTokens} of them cached, ${e.outputTokens} out)`;
     case "hook":
       return `hook    ${e.phase}/${e.hook}: ${e.action}${e.detail ? ` – ${e.detail}` : ""}`;
     case "tool":

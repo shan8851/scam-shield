@@ -25,7 +25,7 @@ export interface CheckInput {
  */
 export type TraceEvent =
   | ({ kind: "hook" } & TraceEntry)
-  | { kind: "model"; turn: number; stopReason: string | null; model: string; inputTokens: number; outputTokens: number }
+  | { kind: "model"; turn: number; stopReason: string | null; model: string; inputTokens: number; cachedTokens: number; outputTokens: number }
   | { kind: "tool"; name: string; target: string | null; result: LookupResult }
   | { kind: "nudge" }
   | { kind: "end"; status: "done" | "failed"; detail: string };
@@ -111,6 +111,7 @@ export async function runCheck(input: CheckInput, deps: LoopDeps): Promise<Check
       stopReason: response.stop_reason,
       model: response.model,
       inputTokens,
+      cachedTokens: usage.cache_read_input_tokens ?? 0,
       outputTokens: usage.output_tokens,
     });
     if (response.stop_reason === "refusal") return finish({ status: "failed", reason: "model refused" });

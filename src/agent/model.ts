@@ -20,7 +20,8 @@ export interface ModelClient {
  * Claude Sonnet 5.5 through the Anthropic SDK. Server-side fallback is on:
  * if the model declines, the API retries on another model inside the same
  * call. Effort is medium: a verdict is a short judgement, and replies should
- * be quick.
+ * be quick. Automatic prompt caching makes later turns read earlier ones,
+ * images included, at a fraction of the cost.
  */
 export function anthropicModel(client: Anthropic = new Anthropic()): ModelClient {
   return {
@@ -28,7 +29,10 @@ export function anthropicModel(client: Anthropic = new Anthropic()): ModelClient
       client.beta.messages.create({
         model: MODEL,
         max_tokens: 8000,
-        system: [{ type: "text", text: request.system, cache_control: { type: "ephemeral" } }],
+        system: request.system,
+        // Cache the whole prefix (system, tools, forwarded content and earlier
+        // turns), so screenshots aren't paid for in full on every turn.
+        cache_control: { type: "ephemeral" },
         messages: request.messages,
         tools: request.tools,
         output_config: { effort: "medium" },
