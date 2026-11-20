@@ -14,6 +14,8 @@ export type AuditEvent =
   | "cool_off"
   | "budget_exhausted"
   | "admitted"
+  | "check_done"
+  | "check_failed"
   | "sender_allowed"
   | "sender_denied";
 

@@ -15,6 +15,8 @@ export const replies = {
     "I can't check voice notes. Send a screenshot or type what they said.",
   unsupportedDocument:
     "I can't check documents yet. Send a screenshot of the message instead.",
+  checkFailed:
+    "I couldn't check this one properly. Treat it with care: don't click links or send money until you're sure.",
   unsupportedOther:
     "I can't check this type of message. Send a screenshot or the text instead.",
 } as const;

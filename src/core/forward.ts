@@ -7,12 +7,16 @@
  */
 export type ForwardKind = "text" | "image" | "voice" | "document" | "video" | "other";
 
+import type { ImageInput } from "../agent/loop";
+
 export interface Forward {
   externalId: string;
   senderNumber: string;
   senderProfileName?: string;
   kind: ForwardKind;
   text?: string;
+  /** Image bytes, in memory only for this run; never stored. */
+  images?: ImageInput[];
   receivedAt: Date;
 }
 

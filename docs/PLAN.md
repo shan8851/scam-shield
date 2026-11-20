@@ -155,7 +155,7 @@ Set in config, not code:
 |---|---|
 | Per sender | 5 checks per 10 minutes, 20 per day |
 | Global | 50 checks per day |
-| Per check | at most 6 model turns, about 30k tokens, 5 lookups |
+| Per check | at most 6 model turns, 120k tokens, 5 lookups |
 
 ## Audit log and traces
 

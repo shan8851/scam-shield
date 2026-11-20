@@ -15,7 +15,7 @@ describe("preModel caps", () => {
   it("block once the turn or token cap is reached", async () => {
     expect((await runPhase("preModel", defaultHooks.preModel, state({ turns: 5 }), null, [])).ok).toBe(true);
     expect((await runPhase("preModel", defaultHooks.preModel, state({ turns: 6 }), null, [])).ok).toBe(false);
-    expect((await runPhase("preModel", defaultHooks.preModel, state({ tokens: 30_000 }), null, [])).ok).toBe(false);
+    expect((await runPhase("preModel", defaultHooks.preModel, state({ tokens: runLimits.maxTokens }), null, [])).ok).toBe(false);
   });
 });
 
@@ -72,6 +72,11 @@ describe("postTool whitelist", () => {
 describe("preSend", () => {
   it("rejects a scam verdict with no signals to explain it", async () => {
     const v: VerdictSubmission = { verdict: "likely_scam", signals: [], impersonating: "hmrc", next_step: "dont_reply" };
+    expect(await preSend(state(), v)).toMatchObject({ ok: false, hook: "valid_verdict" });
+  });
+
+  it("rejects claiming impersonation without saying of whom", async () => {
+    const v: VerdictSubmission = { verdict: "suspicious", signals: ["impersonates_authority"], impersonating: "none", next_step: "dont_reply" };
     expect(await preSend(state(), v)).toMatchObject({ ok: false, hook: "valid_verdict" });
   });
 

@@ -8,8 +8,12 @@ import {
   type VerdictSubmission,
 } from "./vocabulary";
 
-/** Caps for one check, from the plan: 6 model turns, about 30k tokens, 5 lookups. */
-export const runLimits = { maxTurns: 6, maxTokens: 30_000, maxLookups: 5, youngDomainDays: 30 } as const;
+/**
+ * Caps for one check: 6 model turns, 120k tokens, 5 lookups. A screenshot is
+ * roughly 5–6k tokens and is re-sent on every turn (mostly from cache), so
+ * the token cap leaves room for several screenshots; at most about 25p.
+ */
+export const runLimits = { maxTurns: 6, maxTokens: 120_000, maxLookups: 5, youngDomainDays: 30 } as const;
 
 export const LOOKUP_TOOLS = ["check_domain_age", "check_url_reputation"] as const;
 export const VERDICT_TOOL = "submit_verdict";
@@ -110,6 +114,9 @@ export const validVerdict: Hook<VerdictSubmission> = {
     }
     if (!organisations.includes(v.impersonating)) return { action: "block", reason: "unknown organisation" };
     if (!nextSteps.includes(v.next_step)) return { action: "block", reason: "unknown next step" };
+    if (v.signals.includes("impersonates_authority") && v.impersonating === "none") {
+      return { action: "block", reason: `"impersonates_authority" needs the organisation being impersonated, or drop the signal` };
+    }
     if (v.verdict !== "looks_genuine" && v.signals.length === 0) {
       return { action: "block", reason: `"${v.verdict}" needs at least one signal to explain it` };
     }
