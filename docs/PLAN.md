@@ -38,7 +38,10 @@ An invite-only WhatsApp number that friends and family forward suspicious messag
 ### Runtime
 
 - **Next.js on Vercel, Postgres on Neon**, both on free tiers.
-- All state lives in Postgres: allowlist, pending approvals, cool-off and budget counters (atomic SQL), messages, batches, audit log, traces.
+- All state lives in Postgres: allowlist, pending approvals, messages, checks, audit log, traces. Until deploy, the same schema runs on PGlite (Postgres compiled to run in-process) locally and in CI.
+- **Senders are stored as keyed hashes** (HMAC-SHA256 of the normalised number, secret in the environment only). Replies go to the number in the incoming webhook, which exists only in memory for that run. Pending senders show the last four digits and profile name until decided.
+- **The gate counts check rows in sliding windows** inside one transaction holding one advisory lock: a lock, a count, an insert. Decisions are serialised, which is fine at this volume and makes the limits race-proof.
+- **The audit log is append-only at the database:** a trigger rejects UPDATE, DELETE and TRUNCATE. It never holds phone numbers or message text.
 
 ### Request flow
 
@@ -219,11 +222,11 @@ Start with about 25–30 cases. Every real miss becomes a new case.
 
 One PR per step, each small enough to read in the GitHub UI:
 
-1. **Skeleton:** Next.js, Neon schema, CLI adapter, the gate, audit log.
+1. **Skeleton:** schema, CLI adapter, the gate, audit log. Plain TypeScript on PGlite (in-process Postgres); no HTTP yet.
 2. **Agent:** loop, hooks, the two lookup tools, `submit_verdict`.
 3. **Replies:** templates and signal copy.
 4. **Eval:** eval set and the CI gate.
-5. **WhatsApp:** adapter on Meta's test number, and the gathering window.
+5. **WhatsApp:** Next.js on Vercel and Neon, the adapter on Meta's test number, and the gathering window.
 6. **Admin:** approvals, traces view, Telegram nudge, retention cron.
 7. **Launch:** real number live, invites sent.
 
