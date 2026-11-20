@@ -1,8 +1,14 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { extname } from "node:path";
 import { parseArgs } from "node:util";
 import { desc } from "drizzle-orm";
 import { closePglite, openPglite } from "../../db/client";
 import { auditLog } from "../../db/schema";
+import { liveLookups } from "../../agent/lookups";
+import type { ImageInput } from "../../agent/loop";
+import { anthropicModel } from "../../agent/model";
+import { runAdmittedCheck } from "../../core/check";
 import type { Forward, ForwardKind } from "../../core/forward";
 import { gate } from "../../core/gate";
 import { senderHashSecret } from "../../core/identity";
@@ -15,7 +21,7 @@ import { allowSender, denySender, listPending } from "../../core/senders";
  * eval later.
  */
 const usage = `Usage:
-  pnpm cli send --from <number> [--kind text|image|voice|document|video|other] [--id <message-id>] [--name <profile name>] "<text>"
+  pnpm cli send --from <number> [--image <file>]... [--kind voice|document|video|other] [--id <message-id>] [--name <profile name>] "<text>"
   pnpm cli allow <number> [--nickname <name>]
   pnpm cli deny <number>
   pnpm cli pending
@@ -35,7 +41,8 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     from: { type: "string" },
-    kind: { type: "string", default: "text" },
+    kind: { type: "string" },
+    image: { type: "string", multiple: true },
     id: { type: "string" },
     name: { type: "string" },
     nickname: { type: "string" },
@@ -48,18 +55,31 @@ const db = await openPglite(process.env.PGLITE_DATA_DIR ?? ".data/pglite");
 switch (command) {
   case "send": {
     if (!values.from) throw new Error(usage);
+    const images = (values.image ?? []).map(readImage);
     const forward: Forward = {
       externalId: values.id ?? `cli-${randomUUID()}`,
       senderNumber: values.from,
       senderProfileName: values.name,
-      kind: values.kind as ForwardKind,
+      kind: (values.kind as ForwardKind | undefined) ?? (images.length ? "image" : "text"),
       text: positionals.join(" ") || undefined,
+      images,
       receivedAt: new Date(),
     };
     const result = await gate(db, forward, { secret: senderHashSecret() });
     console.log(`gate: ${result.outcome}`);
     console.log(result.reply ? `reply: ${replies[result.reply]}` : "reply: (silence)");
-    if (result.checkId) console.log(`check: ${result.checkId} (no agent yet: stops here)`);
+    if (result.checkId && result.senderId) {
+      const outcome = await runAdmittedCheck(
+        db,
+        { id: result.checkId, senderId: result.senderId },
+        { text: forward.text, images },
+        { model: anthropicModel(), lookups: liveLookups({ safeBrowsingKey: process.env.SAFE_BROWSING_API_KEY }) },
+      );
+      for (const e of outcome.trace) console.log(`  ${describe(e)}`);
+      if (outcome.status === "done") console.log(`verdict: ${JSON.stringify(outcome.verdict)}`);
+      else console.log(`reply: ${replies.checkFailed}`);
+      console.log(`turns: ${outcome.turns}, tokens: ${outcome.tokens}`);
+    }
     break;
   }
   case "allow": {
@@ -100,3 +120,31 @@ switch (command) {
 }
 
 await closePglite(db);
+
+function readImage(path: string): ImageInput {
+  const types: Record<string, ImageInput["mediaType"]> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+  };
+  const mediaType = types[extname(path).toLowerCase()];
+  if (!mediaType) throw new Error(`Unsupported image type: ${path}`);
+  return { mediaType, data: readFileSync(path).toString("base64") };
+}
+
+function describe(e: Awaited<ReturnType<typeof runAdmittedCheck>>["trace"][number]): string {
+  switch (e.kind) {
+    case "model":
+      return `model   turn ${e.turn}: ${e.stopReason} (${e.model}, ${e.inputTokens}+${e.outputTokens} tokens)`;
+    case "hook":
+      return `hook    ${e.phase}/${e.hook}: ${e.action}${e.detail ? ` – ${e.detail}` : ""}`;
+    case "tool":
+      return `tool    ${e.name} ${e.target}: ${JSON.stringify(e.result)}`;
+    case "nudge":
+      return "nudge   no verdict yet";
+    case "end":
+      return `end     ${e.status}: ${e.detail}`;
+  }
+}

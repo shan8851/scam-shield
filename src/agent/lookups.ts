@@ -29,6 +29,8 @@ export interface Lookups {
 }
 
 const TIMEOUT_MS = 5_000;
+/** rdap.org sits behind a bot filter that rejects Node's default user agent. */
+const USER_AGENT = "scam-shield/0.1 (+https://github.com/shan8851/scam-shield)";
 
 /** Live lookups: RDAP (no key) and Safe Browsing v4 (key optional). */
 export function liveLookups(opts: { safeBrowsingKey?: string; fetch?: typeof fetch } = {}): Lookups {
@@ -38,7 +40,7 @@ export function liveLookups(opts: { safeBrowsingKey?: string; fetch?: typeof fet
       try {
         const res = await doFetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
           signal: AbortSignal.timeout(TIMEOUT_MS),
-          headers: { accept: "application/rdap+json" },
+          headers: { accept: "application/rdap+json", "user-agent": USER_AGENT },
         });
         if (res.status === 404) return { domain, status: "not_found", registered: null, ageDays: null };
         if (!res.ok) return { domain, status: "unavailable", registered: null, ageDays: null };

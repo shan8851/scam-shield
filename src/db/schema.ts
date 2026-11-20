@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigserial,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -49,7 +50,8 @@ export const messages = pgTable("messages", {
 
 /**
  * One row per admitted check. The gate counts these rows in sliding windows
- * to enforce the per-sender cool-off and the global daily budget.
+ * to enforce the per-sender cool-off and the global daily budget; the agent
+ * records its outcome and trace on the same row.
  */
 export const checks = pgTable(
   "checks",
@@ -57,6 +59,14 @@ export const checks = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     senderId: uuid("sender_id").notNull().references(() => senders.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    status: text("status", { enum: ["running", "done", "failed"] }).notNull().default("running"),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    /** The verdict after preSend hooks, as structured enums. */
+    verdict: jsonb("verdict").$type<Record<string, unknown>>(),
+    failure: text("failure"),
+    /** What the harness did and decided, step by step. Never message text. */
+    trace: jsonb("trace").$type<unknown[]>(),
+    tokens: integer("tokens"),
   },
   (t) => [index("checks_sender_created_idx").on(t.senderId, t.createdAt)],
 );
