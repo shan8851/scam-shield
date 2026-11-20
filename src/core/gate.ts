@@ -5,7 +5,7 @@ import { audit, type AuditEvent } from "./audit";
 import { limits } from "./config";
 import { supportedKinds, type Forward, type ForwardKind } from "./forward";
 import { hashNumber, last4 } from "./identity";
-import type { ReplyKey } from "./replies";
+import type { ReplyKey } from "../replies/copy";
 
 export type GateOutcome =
   | "duplicate"

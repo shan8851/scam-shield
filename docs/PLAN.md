@@ -125,27 +125,31 @@ The model finishes by calling `submit_verdict` with enums only:
 
 ### What the user sees
 
-Code renders the reply:
-- a verdict header;
-- one plain sentence per signal, each with an action ("Don't click the link", "Don't reply");
-- facts from tool results, such as domain age;
-- the next step, with an official-channel line from a fixed table where one applies ("contact HMRC through gov.uk");
+Code renders the reply from `src/replies/copy.ts`, the single file that holds every word the bot can say:
+- a verdict header: ⚠️ *Likely a scam*, 🤔 *Suspicious* or 👍 *Looks genuine: no scam signs found*;
+- for scam and suspicious, up to three signal lines in a fixed priority order (the most dangerous asks first), each a plain sentence with an action where one fits;
+- up to two lookup facts, and only facts that count against the message (a recently set-up site, an unregistered site, a Google warning). A clean lookup is never mentioned, because it would read as a safety promise;
+- for looks genuine, one fixed reason line instead of signals;
+- the next step, with an official-channel line per organisation where one applies (HMRC through gov.uk, your bank on the number on your card);
 - a fixed footer: **"A second opinion, not a guarantee. Trust your judgement."**
 
-Official reporting routes used in the templates: forward scam texts to **7726**, screenshots to **report@phishing.gov.uk**, HMRC-related messages to **phishing@hmrc.gov.uk** or **60599**.
+**Nothing from the forwarded message is ever echoed**, not even a domain name. Lookup facts are described ("the link's website was set up 3 days ago"). A domain is attacker-chosen text, and WhatsApp would make it a tappable link sent by a trusted bot.
 
-Templates and signal copy are user-facing writing, reviewed and edited by Shan in their own PR.
+Official reporting routes used in the templates: forward scam texts to **7726**, and HMRC-related ones to **60599**. Screenshots can go to **report@phishing.gov.uk**.
 
-Examples:
+The download signal carries the lesson of fake-recruiter attacks: "Never install anything or run code someone sends you, least of all on a work computer."
 
-> ⚠️ **Likely a scam.** It pressures you to act fast · asks for payment by gift card · the link's site was registered 3 days ago. Don't reply or click. Forward it to 7726, then delete it. If you're worried, contact HMRC through gov.uk, not through anything in the message.
-> *A second opinion, not a guarantee. Trust your judgement.*
+Example:
 
-> 🤔 **Suspicious.** An unsolicited job offer with a very high salary · it links to a booking page outside LinkedIn. Replying on LinkedIn to ask for the job description is low risk. Don't click links or move to another app until you're sure.
-> *A second opinion, not a guarantee. Trust your judgement.*
-
-> ✅ **Looks genuine: no scam signs found.** It comes from the company's own email domain and doesn't ask for money, codes or details.
-> *A second opinion, not a guarantee. Trust your judgement.*
+> ⚠️ *Likely a scam*
+>
+> • It asks for payment in a way real organisations don't use, like gift cards, crypto or a "safe account".
+> • It's rushing you. Scammers want you to act before you think.
+> • The link's website was set up 3 days ago.
+>
+> *What to do:* Forward it to 7726 (it's free), then delete it.
+>
+> _A second opinion, not a guarantee. Trust your judgement._
 
 ## Limits
 
@@ -156,6 +160,11 @@ Set in config, not code:
 | Per sender | 5 checks per 10 minutes, 20 per day |
 | Global | 50 checks per day |
 | Per check | at most 6 model turns, 120k tokens, 5 lookups |
+
+## Kill switch and alerts
+
+- **One setting pauses every check.** While it's on, the gate admits nothing, and anyone who messages gets a fixed "paused" reply. It's switched from the admin page and audit-logged.
+- **Alerts go to Shan on Telegram** when something looks wrong: the daily budget is hit, several checks fail in a row, or there's a burst of unknown senders.
 
 ## Audit log and traces
 
@@ -227,7 +236,7 @@ One PR per step, each small enough to read in the GitHub UI:
 3. **Replies:** templates and signal copy.
 4. **Eval:** eval set and the CI gate.
 5. **WhatsApp:** Next.js on Vercel and Neon, the adapter on Meta's test number, and the gathering window.
-6. **Admin:** approvals, traces view, Telegram nudge, retention cron.
+6. **Admin:** approvals, traces view, Telegram nudge, retention cron, and the kill switch with its alerts.
 7. **Launch:** real number live, invites sent.
 
 The eval comes before WhatsApp so the core is proven through the CLI before any real person can reach it.

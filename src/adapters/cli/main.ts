@@ -12,7 +12,8 @@ import { runAdmittedCheck } from "../../core/check";
 import type { Forward, ForwardKind } from "../../core/forward";
 import { gate } from "../../core/gate";
 import { senderHashSecret } from "../../core/identity";
-import { replies } from "../../core/replies";
+import { fixedReplies as replies } from "../../replies/copy";
+import { renderReply } from "../../replies/render";
 import { allowSender, denySender, listPending } from "../../core/senders";
 
 /**
@@ -77,7 +78,7 @@ switch (command) {
       );
       for (const e of outcome.trace) console.log(`  ${describe(e)}`);
       if (outcome.status === "done") console.log(`verdict: ${JSON.stringify(outcome.verdict)}`);
-      else console.log(`reply: ${replies.checkFailed}`);
+      console.log(`\n--- reply ---\n${renderReply(outcome)}\n-------------`);
       console.log(`turns: ${outcome.turns}, tokens: ${outcome.tokens}`);
     }
     break;
