@@ -59,8 +59,21 @@ describe("rendering a verdict", () => {
   it("says plainly when a message looks fine, with no next step to take", () => {
     const v: VerdictSubmission = { verdict: "looks_genuine", signals: [], impersonating: "none", next_step: "none" };
     expect(renderVerdict(v, [])).toBe(
-      ["👍 *Looks genuine: no scam signs found*", "It doesn't ask for money, codes or personal details, and nothing about its links looks wrong.", footer].join("\n\n"),
+      ["👍 *Looks genuine: no scam signs found*", "It doesn't ask for money, codes or personal details, and nothing in it looks off.", footer].join("\n\n"),
     );
+  });
+
+  it("mentions links in the genuine reason only when links were checked", () => {
+    const v: VerdictSubmission = { verdict: "looks_genuine", signals: [], impersonating: "none", next_step: "none" };
+    const old: LookupResult = { domain: "phantom.app", status: "ok", registered: "2020-11-21", ageDays: 2190 };
+    expect(renderVerdict(v, [old])).toContain("nothing about its links looks wrong");
+    expect(renderVerdict(v, [])).not.toContain("links");
+  });
+
+  it("puts urgency above a shortened link", () => {
+    const v: VerdictSubmission = { verdict: "suspicious", signals: ["shortened_link", "urgency"], impersonating: "none", next_step: "dont_reply" };
+    const bullets = renderVerdict(v, []).split("\n").filter((l) => l.startsWith("• "));
+    expect(bullets).toEqual(["• It's rushing you. Scammers want you to act before you think.", "• It uses a shortened link, so where it leads can't be checked."]);
   });
 
   it("never mentions a clean lookup", () => {

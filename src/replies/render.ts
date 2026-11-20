@@ -31,7 +31,7 @@ export function renderVerdict(verdict: VerdictSubmission, lookups: LookupResult[
   const parts: string[] = [verdictHeader[verdict.verdict]];
 
   if (verdict.verdict === "looks_genuine") {
-    parts.push(genuineReason);
+    parts.push(lookups.length > 0 ? genuineReason.withLinks : genuineReason.noLinks);
   } else {
     const reasons = [...signalLines(verdict), ...lookupFacts(lookups)];
     parts.push(reasons.map((r) => `• ${r}`).join("\n"));

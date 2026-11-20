@@ -45,9 +45,14 @@ export const verdictHeader: Record<Verdict, string> = {
   looks_genuine: "👍 *Looks genuine: no scam signs found*",
 };
 
-/** Said instead of signal lines when the verdict is "looks genuine". */
-export const genuineReason =
-  "It doesn't ask for money, codes or personal details, and nothing about its links looks wrong.";
+/**
+ * Said instead of signal lines when the verdict is "looks genuine": one
+ * version when links were checked, one when there were none to check.
+ */
+export const genuineReason = {
+  withLinks: "It doesn't ask for money, codes or personal details, and nothing about its links looks wrong.",
+  noLinks: "It doesn't ask for money, codes or personal details, and nothing in it looks off.",
+};
 
 /** One plain sentence per signal, each saying what to do where it can. */
 export const signalLine: Record<Signal, string> = {
@@ -64,7 +69,7 @@ export const signalLine: Record<Signal, string> = {
   moves_to_another_app: "It wants to move you to another app, away from where it started.",
   threatens_consequences: "It threatens you with trouble if you don't act. Real organisations don't do that by message.",
   too_good_to_be_true: "The offer is too good to be true.",
-  shortened_link: "The link is shortened, which hides where it really goes.",
+  shortened_link: "It uses a shortened link, so where it leads can't be checked.",
   urgency: "It's rushing you. Scammers want you to act before you think.",
 };
 
@@ -80,8 +85,8 @@ export const signalPriority: readonly Signal[] = [
   "moves_to_another_app",
   "threatens_consequences",
   "too_good_to_be_true",
-  "shortened_link",
   "urgency",
+  "shortened_link",
 ];
 
 /** At most this many signal lines, so a reply stays readable on a phone. */
