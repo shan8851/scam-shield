@@ -1,12 +1,12 @@
 # Scam Shield: v1 plan
 
-An invite-only WhatsApp number that friends and family forward suspicious messages to. It replies with a plain verdict and why. It never says "safe", never asks for details, and never becomes an attack route itself.
+An invite-only WhatsApp number that friends and family forward suspicious messages to. It replies with a plain verdict, why, and a safe next step. It never promises a message is safe, never asks for details, and never becomes an attack route itself.
 
 ## Done line
 
 - Live on a spare WhatsApp number (not Shan's own) through the WhatsApp Cloud API.
 - Its own agent loop on the plain Anthropic SDK and its own hook layer: pre and post-tool hooks, policy checks, an approval step for unknown senders, per-sender cool-offs and a global daily budget enforced in code, and an audit log.
-- Replies built only from fixed templates. Verdicts: **scam**, **suspicious**, or **verify through the official channel**.
+- Replies built only from fixed templates. Verdicts: **likely a scam**, **suspicious**, or **looks genuine: no scam signs found**.
 - Inputs: text, forwarded messages, screenshots and links (links never fetched).
 - A retention policy for forwarded content, applied in code.
 - A trace of every run.
@@ -51,7 +51,7 @@ webhook ─► verify Meta signature ─► dedupe on message ID (unique constra
                  tools: check_url_reputation, check_domain_age, submit_verdict
                  pre-tool hook:  domain must appear in the batch; lookup cap; budget reserve
                  post-tool hook: keep only whitelisted fields from the API result
-                 pre-send hook:  verdict schema valid → render template → send
+                 pre-send hook:  verdict schema valid → "looks genuine" guard → render template → send
           └─► trace + audit log
 ```
 
@@ -91,20 +91,58 @@ Shortened links are not expanded, since that touches the shortener; a shortener 
 
 ## Replies
 
-- The model finishes by calling `submit_verdict` with enums only:
-  - the verdict;
-  - the signals it saw, from the fixed signal list;
-  - the organisation being impersonated, from a fixed list (HMRC, Royal Mail, a bank, DVLA, an employer, and so on), if any.
-- Code renders the reply:
-  - a verdict header;
-  - one plain sentence per signal, each with an action ("Don't click the link", "Don't reply");
-  - facts from tool results, such as domain age;
-  - an official-channel line from a fixed table ("contact HMRC through gov.uk, not through anything in the message").
-- Templates and signal copy are user-facing writing, reviewed and edited by Shan in their own PR.
+### Verdicts
 
-Example:
+| Verdict | Meaning |
+|---|---|
+| **Likely a scam** | Clear scam signals |
+| **Suspicious** | Some signals, or not enough to tell |
+| **Looks genuine: no scam signs found** | No signals and nothing bad in the lookups |
 
-> ⚠️ **Likely a scam.** It pressures you to act fast · asks for payment by gift card · the link's site was registered 3 days ago. Don't reply or click. If you're worried, contact HMRC through gov.uk, not through anything in the message.
+A bot that only ever says "scam" or "check it yourself" is not useful, so a message that looks fine is told it looks fine. It is never called "safe", and every reply carries the footer below.
+
+**The "looks genuine" guard** runs in the pre-send hook. The verdict is downgraded to **suspicious** if:
+- the model flagged any signal; or
+- a lookup came back bad (a flagged URL, or a domain registered within about 30 days).
+
+The guard does not try to prove a message is genuine. It stops the model contradicting its own evidence, which is what an injected message would aim for.
+
+### What the model returns
+
+The model finishes by calling `submit_verdict` with enums only:
+- the verdict;
+- the signals it saw, from the fixed signal list;
+- the organisation being impersonated, from a fixed list (HMRC, Royal Mail, a bank, DVLA, an employer, and so on), if any;
+- one next step, from a fixed list:
+  - ask for details in the same app before doing anything else;
+  - don't click links or move to another app (Telegram, WhatsApp) until you're sure;
+  - contact them through their official website or app, not through the message;
+  - forward it to 7726, then delete it;
+  - don't reply.
+
+### What the user sees
+
+Code renders the reply:
+- a verdict header;
+- one plain sentence per signal, each with an action ("Don't click the link", "Don't reply");
+- facts from tool results, such as domain age;
+- the next step, with an official-channel line from a fixed table where one applies ("contact HMRC through gov.uk");
+- a fixed footer: **"A second opinion, not a guarantee. Trust your judgement."**
+
+Official reporting routes used in the templates: forward scam texts to **7726**, screenshots to **report@phishing.gov.uk**, HMRC-related messages to **phishing@hmrc.gov.uk** or **60599**.
+
+Templates and signal copy are user-facing writing, reviewed and edited by Shan in their own PR.
+
+Examples:
+
+> ⚠️ **Likely a scam.** It pressures you to act fast · asks for payment by gift card · the link's site was registered 3 days ago. Don't reply or click. Forward it to 7726, then delete it. If you're worried, contact HMRC through gov.uk, not through anything in the message.
+> *A second opinion, not a guarantee. Trust your judgement.*
+
+> 🤔 **Suspicious.** An unsolicited job offer with a very high salary · it links to a booking page outside LinkedIn. Replying on LinkedIn to ask for the job description is low risk. Don't click links or move to another app until you're sure.
+> *A second opinion, not a guarantee. Trust your judgement.*
+
+> ✅ **Looks genuine: no scam signs found.** It comes from the company's own email domain and doesn't ask for money, codes or details.
+> *A second opinion, not a guarantee. Trust your judgement.*
 
 ## Limits
 
@@ -141,18 +179,19 @@ The repository is public from the start, so every commit is written to be read b
 
 ## Eval
 
-**Labels:** scam, suspicious, legit.
+**Labels:** scam, suspicious, genuine. Where the truth is unclear, the label is suspicious.
 
 **Weighted costs:**
 
 | Truth | Bot said | Cost |
 |---|---|---|
-| Scam | verify through the official channel | 10 |
+| Scam | looks genuine | 10 |
+| Suspicious | looks genuine | 3 |
+| Genuine | likely a scam | 3 |
 | Scam | suspicious | 2 |
-| Suspicious | verify through the official channel | 3 |
-| Legit | scam | 1 |
+| Genuine | suspicious | 1 |
 
-Genuine messages are required, and the false-alarm rate has its own ceiling, so a bot that calls everything a scam cannot pass.
+About 40% of cases are genuine, and the false-alarm rate has its own ceiling, so a bot that calls everything a scam cannot pass. Cases may also name acceptable next steps (for example, "ask for details in the same app" for an unclear job approach).
 
 **Categories:**
 - job scams
