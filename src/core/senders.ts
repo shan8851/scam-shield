@@ -65,3 +65,35 @@ export async function listPending(db: Db) {
     .where(eq(senders.status, "pending"))
     .orderBy(senders.createdAt);
 }
+
+/**
+ * Someone starts a conversation (/start or /help). The admin is always
+ * allowed. An unknown sender becomes pending and gets the invite-only reply
+ * once; pending and denied senders get silence; allowed senders get the
+ * welcome. Nothing from the message is stored.
+ */
+export async function introduce(
+  db: Db,
+  sender: { key: string; displayName?: string; username?: string },
+  opts: { secret: string; adminKey?: string; now?: Date },
+): Promise<"welcome" | "inviteOnly" | null> {
+  const now = opts.now ?? new Date();
+  const senderHash = hashSender(sender.key, opts.secret);
+  const [row] = await db.select().from(senders).where(eq(senders.senderHash, senderHash));
+
+  if (opts.adminKey && sender.key === opts.adminKey) {
+    if (row?.status !== "allowed") await allowSender(db, sender.key, { secret: opts.secret, nickname: "admin", now });
+    return "welcome";
+  }
+  if (!row) {
+    await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(senders)
+        .values({ senderHash, status: "pending", displayName: sender.displayName ?? null, username: sender.username ?? null })
+        .returning({ id: senders.id });
+      await audit(tx, "unknown_sender", created!.id, { replied: true }, now);
+    });
+    return "inviteOnly";
+  }
+  return row.status === "allowed" ? "welcome" : null;
+}

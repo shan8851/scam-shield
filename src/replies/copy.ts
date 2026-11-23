@@ -18,6 +18,8 @@ import type { NextStep, Organisation, Signal, Verdict } from "../agent/vocabular
 export const fixedReplies = {
   inviteOnly:
     "This bot is invite-only. If someone shared it with you, ask them to add you.",
+  welcome:
+    "Hi! Forward me anything that looks suspicious: a text, an email, a screenshot or a link. I'll tell you whether it looks like a scam, why, and what to do. I'll never ask for your details.",
   checking: "Checking…",
   coolOff:
     "You've sent a lot of checks in a short time. Please wait a little and try again.",

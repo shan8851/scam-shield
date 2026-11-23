@@ -16,12 +16,14 @@
     "eval": "tsx evals/run.ts",
     "eval:screens": "tsx evals/screens.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "test:neon": "tsx scripts/neon-test.ts"
+    "test:neon": "tsx scripts/neon-test.ts",
+    "telegram:webhook": "tsx scripts/set-webhook.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",
     "@electric-sql/pglite": "^0.5.16",
     "@neondatabase/serverless": "^1.2.1",
+    "@vercel/functions": "^3.11.3",
     "drizzle-orm": "^0.45.4",
     "tldts": "^7.5.4"
   },
