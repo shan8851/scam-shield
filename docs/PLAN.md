@@ -1,17 +1,17 @@
 # Scam Shield: v1 plan
 
-An invite-only WhatsApp number that friends and family forward suspicious messages to. It replies with a plain verdict, why, and a safe next step. It never promises a message is safe, never asks for details, and never becomes an attack route itself.
+An invite-only Telegram bot that friends, family and colleagues forward suspicious messages to. It replies with a plain verdict, why, and a safe next step. It never promises a message is safe, never asks for details, and never becomes an attack route itself.
 
 ## Done line
 
-- Live on a spare WhatsApp number (not Shan's own) through the WhatsApp Cloud API.
-- Its own agent loop on the plain Anthropic SDK and its own hook layer: pre and post-tool hooks, policy checks, an approval step for unknown senders, per-sender cool-offs and a global daily budget enforced in code, and an audit log.
+- Live as a Telegram bot, deployed on Vercel with Postgres on Neon.
+- Its own agent loop on the plain Anthropic SDK and its own hook layer: pre and post-tool hooks, policy checks, an approval step for unknown senders (approve or deny buttons sent to Shan on Telegram), a kill switch, per-sender cool-offs and a global daily budget enforced in code, and an audit log.
 - Replies built only from fixed templates. Verdicts: **likely a scam**, **suspicious**, or **looks genuine: no scam signs found**.
 - Inputs: text, forwarded messages, screenshots and links (links never fetched).
 - A retention policy for forwarded content, applied in code.
 - A trace of every run.
 - A weighted eval (a missed scam costs more than a false alarm) plus prompt-injection and multi-image cases, run in CI as a gate on every PR.
-- 3–5 invited users, and at least 15 real forwards handled, at least 5 of them from people other than Shan.
+- Invited users (Shan, family and a few developers), and at least 15 real forwards handled.
 - The repository is public, with nothing personal in it or its history (see "Public repository").
 - The three-step close-out (review pass, Q&A walkthrough, a write-up outside the repo).
 
@@ -19,35 +19,36 @@ An invite-only WhatsApp number that friends and family forward suspicious messag
 
 **Target:** about two weeks.
 
+**Channel:** Telegram, because the expected users already use it and a bot needs no business verification, phone number or per-message pricing. WhatsApp is a later adapter (see "Later, not v1").
+
 ## Principles
 
 - **Signals, not categories.** The model judges against a short, fixed list of scam signals (urgency, impersonating an authority, unusual payment methods, requests for codes or credentials, a link that doesn't match the claimed sender, too good to be true, moving to another channel, asking you to download or run something such as an app, a file or a coding test, asking you to sign in, connect a wallet or grant access through a link). Booking a meeting is not a signal on its own; where the booking link leads can be. There is no per-category logic in code. Scam categories live in the eval set, which is how coverage is measured. A new scam type becomes an eval case; the signal list changes only if the existing signals miss it.
 - **The model never writes a word the user sees.** It returns structured enums; code renders the reply from templates. Forwarded content is attacker-written, and model prose would let a crafted message speak through a trusted bot.
 - **Event-driven, zero cost when idle.** No always-on agent, no heartbeat. A message wakes one function; nothing runs otherwise.
-- **Limits are there to show enforcement, not because of load.** Expected use is about 6 people and 1–2 messages a week each. The limits are still enforced in code and tested.
+- **Limits are there to show enforcement, not because of load.** Expected use is a handful of people and a few messages a week. The limits are still enforced in code and tested.
 - **Build rule.** Plain Anthropic SDK and a loop written here. The hook layer and agent logic are this repo's own; no agent frameworks, no Agent SDK, no borrowed hooks. Ordinary plumbing (DB client, HTTP) can be pulled in.
 
 ## Architecture
 
 ### Surface
 
-- **WhatsApp Cloud API, directly with Meta** (not Twilio, not an unofficial library). The number is moved off the WhatsApp app onto the Cloud API. Development uses Meta's test number first.
-- Users always message first, so every reply sits inside the 24-hour service window and no paid templates are needed. At this volume it stays inside Meta's free monthly allowance.
-- The channel is a **thin adapter**: an incoming message becomes a neutral `Forward`, and a verdict goes out through the adapter. A **CLI adapter** drives local runs and the eval; other channels (email, Telegram) can be added later without touching the core.
+- **A Telegram bot through the Bot API**, receiving updates by webhook. Telegram is free, needs no business account, and a bot can only reply to people who have messaged it first.
+- The channel is a **thin adapter**: an incoming update becomes a neutral `Forward`, and a rendered reply goes out through the adapter. A **CLI adapter** drives local runs and the eval. Other channels (WhatsApp, email) can be added later without touching the core.
 
 ### Runtime
 
-- **Next.js on Vercel, Postgres on Neon**, both on free tiers.
-- All state lives in Postgres: allowlist, pending approvals, messages, checks, audit log, traces. Until deploy, the same schema runs on PGlite (Postgres compiled to run in-process) locally and in CI.
-- **Senders are stored as keyed hashes** (HMAC-SHA256 of the normalised number, secret in the environment only). Replies go to the number in the incoming webhook, which exists only in memory for that run. Pending senders show the last four digits and profile name until decided.
-- **The gate counts check rows in sliding windows** inside one transaction holding one advisory lock: a lock, a count, an insert. Decisions are serialised, which is fine at this volume and makes the limits race-proof.
-- **The audit log is append-only at the database:** a trigger rejects UPDATE, DELETE and TRUNCATE. It never holds phone numbers or message text.
+- **Next.js on Vercel, Postgres on Neon**, both on free tiers. Next.js serves the webhook route and the daily cron; there is no web UI.
+- All state lives in Postgres: senders, messages, checks, settings (the kill switch), audit log, traces. Locally and in CI the same schema runs on PGlite (Postgres compiled to run in-process).
+- **Senders are stored as keyed hashes** (HMAC-SHA256 of a channel-qualified sender ID, such as the Telegram user ID, with the secret in the environment only). Replies go to the chat in the incoming update, which exists only in memory for that run. Pending senders keep a display name and username until decided.
+- **The gate counts check rows in sliding windows** inside one transaction holding one advisory lock: a lock, a count, an insert. Decisions are serialised, which is fine at this volume and makes the limits race-proof. The lock is proven against real Postgres on Neon, not only PGlite.
+- **The audit log is append-only at the database:** a trigger rejects UPDATE, DELETE and TRUNCATE. It never holds sender IDs, names or message text.
 
 ### Request flow
 
 ```
-webhook ─► verify Meta signature ─► dedupe on message ID (unique constraint) ─► store ─► 200
-   └─► gate (code only, no model): invited? cool-off? daily budget? supported type?
+webhook ─► verify Telegram secret token ─► dedupe on update ID (unique constraint) ─► store ─► 200
+   └─► gate (code only, no model): paused? invited? cool-off? daily budget? supported type?
           └─ fail → fixed reply or silence, audit-logged
    └─► after(): gathering window ─► claim batch ─► send "checking…"
           └─► agent loop (Claude Sonnet 5.5, capped turns and tokens)
@@ -58,22 +59,23 @@ webhook ─► verify Meta signature ─► dedupe on message ID (unique constra
           └─► trace + audit log
 ```
 
-- **Acknowledge first, work after.** The webhook returns quickly; the agent runs in `after()`. Meta's message ID is the idempotency key and is stored before any work starts.
-- **"Checking…" is sent only after the gate passes**, so a stranger never learns the number is live.
-- **Unknown senders** get one fixed "this number is invite-only" reply, ever, then silence. They land in a pending list.
-- **Approvals:** an authenticated admin UI lists pending senders with approve and deny buttons. A Telegram message to Shan says when someone is waiting. Expected users are pre-approved before launch.
+- **Acknowledge first, work after.** The webhook returns quickly; the agent runs in `after()`. Telegram's update ID is the idempotency key and is stored before any work starts. Telegram retries any update that isn't acknowledged.
+- **The webhook checks Telegram's secret token header** on every request, so only Telegram can deliver updates.
+- **"Checking…" is sent only after the gate passes.**
+- **Unknown senders** get one fixed "this bot is invite-only" reply, ever, then silence. Shan gets their display name and username with approve and deny buttons.
+- **Shan is the admin by Telegram user ID** (an environment variable). Only that ID can press the buttons or send admin commands.
 
 ### Gathering window (bursts and multiple images)
 
-The Cloud API delivers each image as its own webhook, so three screenshots sent together arrive as three messages. Each message is stored and acknowledged. In `after()`, the handler waits about 5 seconds, then checks whether a newer message from the same sender has arrived. If one has, it exits. The newest handler claims every unprocessed message from that sender in one atomic update and runs **one check over all the text and images together**. Cool-offs count checks, not messages.
+Telegram delivers each photo as its own update, even when several are sent together as an album, so three screenshots arrive as three messages. Each message is stored and acknowledged. In `after()`, the handler waits about 5 seconds, then checks whether a newer message from the same sender has arrived. If one has, it exits. The newest handler claims every unprocessed message from that sender in one atomic update and runs **one check over all the text and images together**. Cool-offs count checks, not messages.
 
 ## Inputs
 
 | Input | v1 | Handling |
 |---|---|---|
 | Text, typed or pasted | In | Core path |
-| Forwarded WhatsApp messages | In | Arrive as text or image; the forwarded flag is kept in the trace |
-| Screenshots and images | In | Downloaded from Meta's media endpoint, passed to Claude vision |
+| Forwarded messages | In | Telegram's native forward arrives as text or a photo; the forwarded flag is kept in the trace |
+| Screenshots and images | In | Downloaded through the Bot API's file endpoint, passed to Claude vision, never stored |
 | Links | In, never fetched | Judged by lookups only (below) |
 | Voice notes | Out | Fixed reply: send a screenshot or type what they said |
 | PDFs | Out | Fixed reply. Candidate for v1.1 if the eval shows a need |
@@ -133,7 +135,7 @@ Code renders the reply from `src/replies/copy.ts`, the single file that holds ev
 - the next step, with an official-channel line per organisation where one applies (HMRC through gov.uk, your bank on the number on your card);
 - a fixed footer: **"A second opinion, not a guarantee. Trust your judgement."**
 
-**Nothing from the forwarded message is ever echoed**, not even a domain name. Lookup facts are described ("the link's website was set up 3 days ago"). A domain is attacker-chosen text, and WhatsApp would make it a tappable link sent by a trusted bot.
+**Nothing from the forwarded message is ever echoed**, not even a domain name. Lookup facts are described ("the link's website was set up 3 days ago"). A domain is attacker-chosen text, and Telegram would make it a tappable link sent by a trusted bot.
 
 Official reporting routes used in the templates: forward scam texts to **7726**, and HMRC-related ones to **60599**. Screenshots can go to **report@phishing.gov.uk**.
 
@@ -163,14 +165,15 @@ Set in config, not code:
 
 ## Kill switch and alerts
 
-- **One setting pauses every check.** While it's on, the gate admits nothing, and anyone who messages gets a fixed "paused" reply. It's switched from the admin page and audit-logged.
+- **One setting pauses every check.** While it's on, the gate admits nothing, and anyone who messages gets a fixed "paused" reply. Shan switches it with `/pause` and `/resume` from Telegram; the setting lives in the database, so no redeploy is needed, and every change is audit-logged.
 - **Alerts go to Shan on Telegram** when something looks wrong: the daily budget is hit, several checks fail in a row, or there's a burst of unknown senders.
+- **Admin commands:** `/pending` lists people waiting, `/pause` and `/resume` switch the kill switch, `/status` shows today's checks and spend. Traces are read with the CLI against the database.
 
 ## Audit log and traces
 
 - **Audit log:** an append-only record of policy decisions: who, which rule, what decision, when.
 - **Traces:** the debugging detail of each run (model turns, tool calls, hook decisions, timings, tokens).
-- Both refer to senders by allowlist ID, never by phone number.
+- Both refer to senders by their internal ID, never by a Telegram ID, name or phone number.
 
 ## Retention
 
@@ -184,7 +187,7 @@ The repository is public from the start, so every commit is written to be read b
 
 - **No personal data** in code, fixtures, docs or commit messages. Eval fixtures use invented names and Ofcom's reserved drama numbers (07700 900000–900999).
 - **No live scam links.** Links are defanged (`hxxps://example[.]com`). Fixtures record the lookup results, so the eval is deterministic and never touches a live API or a working link.
-- **No deployment details.** The bot's number, the allowlist, the admin URL and all secrets live in environment variables or the database.
+- **No deployment details.** The bot token, the admin's Telegram ID, the webhook secret and all other secrets live in environment variables; the allowlist lives in the database.
 - **GitHub secret scanning and push protection** are on.
 - **The system prompt and signal list are public by design.** The defences are the templates (the model never writes user-facing text), the gate and the eval, not secrecy.
 - **Licence:** MIT.
@@ -223,7 +226,7 @@ About 40% of cases are genuine, and the false-alarm rate has its own ceiling, so
 - published examples from official UK sources, preferring Open Government Licence material such as GOV.UK's HMRC phishing examples, with NCSC, Action Fraud, Royal Mail and FCA ScamSmart as further references (paraphrased where not openly licensed);
 - genuine messages, redacted the same way.
 
-Start with about 25–30 cases. Every real miss becomes a new case.
+42 cases at launch (16 genuine, 10 held out). Every real miss becomes a new case.
 
 **CI:** GitHub Actions on every PR to `main`: lint, typecheck, tests, then the eval.
 
@@ -231,19 +234,17 @@ Start with about 25–30 cases. Every real miss becomes a new case.
 
 One PR per step, each small enough to read in the GitHub UI:
 
-1. **Skeleton:** schema, CLI adapter, the gate, audit log. Plain TypeScript on PGlite (in-process Postgres); no HTTP yet.
-2. **Agent:** loop, hooks, the two lookup tools, `submit_verdict`.
-3. **Replies:** templates and signal copy.
-4. **Eval:** eval set and the CI gate.
-5. **WhatsApp:** Next.js on Vercel and Neon, the adapter on Meta's test number, and the gathering window.
-6. **Admin:** approvals, traces view, Telegram nudge, retention cron, and the kill switch with its alerts.
-7. **Launch:** real number live, invites sent.
-
-The eval comes before WhatsApp so the core is proven through the CLI before any real person can reach it.
+1. **Skeleton:** schema, CLI adapter, the gate, audit log. *(done)*
+2. **Agent:** loop, hooks, the two lookup tools, `submit_verdict`. *(done)*
+3. **Replies:** templates and signal copy. *(done)*
+4. **Eval:** 42 cases and the CI gate. *(done)*
+5. **Telegram:** Next.js on Vercel and Neon, the webhook with its secret token and update dedupe, channel-qualified sender hashes, photo download, the gathering window, and the gate's lock proven on Neon.
+6. **Governance over Telegram:** approve and deny buttons, `/pause` and `/resume`, `/pending` and `/status`, alerts, the retention cron, and `pnpm cli trace`.
+7. **Launch:** the bot live, invites sent, real forwards.
 
 ## Later, not v1
 
 - PDFs, then voice notes.
-- An email channel (an adapter).
+- A WhatsApp channel (an adapter on the WhatsApp Cloud API), and an email channel.
 - A cross-provider eval run comparing models on the same suite.
 - "Guard your inbox" with OAuth, once the value is shown.

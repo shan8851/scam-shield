@@ -1,10 +1,10 @@
 # scam-shield
 
-An invite-only WhatsApp number that people forward suspicious messages to. It replies with a plain verdict, why, and a safe next step. The plan and its decisions are in `docs/PLAN.md`; read it before changing anything substantial.
+An invite-only Telegram bot that people forward suspicious messages to. It replies with a plain verdict, why, and a safe next step. The plan and its decisions are in `docs/PLAN.md`; read it before changing anything substantial.
 
 ## Build rule
 
-Minimal frameworks. The plain Anthropic SDK and an agent loop written here. The hook layer (pre/post-tool hooks, policy checks, approvals, budgets, audit log) and the agent logic are written in this repo, not borrowed from an agent framework, the Claude Agent SDK or Claude Code hooks. Ordinary plumbing (WhatsApp client, DB client, HTTP) can be pulled in.
+Minimal frameworks. The plain Anthropic SDK and an agent loop written here. The hook layer (pre/post-tool hooks, policy checks, approvals, budgets, audit log) and the agent logic are written in this repo, not borrowed from an agent framework, the Claude Agent SDK or Claude Code hooks. Ordinary plumbing (DB client, HTTP, a channel's API) can be pulled in.
 
 ## This repo is public
 
