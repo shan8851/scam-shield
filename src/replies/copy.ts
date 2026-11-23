@@ -10,14 +10,14 @@ import type { NextStep, Organisation, Signal, Verdict } from "../agent/vocabular
  * ("the link's website was set up 3 days ago"), never echoed, so the bot
  * can't hand anyone a tappable scam link.
  *
- * Formatting is WhatsApp's: *bold*, _italic_, plain line breaks.
+ * Formatting is Telegram's Markdown: *bold*, _italic_, plain line breaks.
  */
 
 // --- Fixed replies the gate and the loop send ---------------------------
 
 export const fixedReplies = {
   inviteOnly:
-    "This number is invite-only. If someone shared it with you, ask them to add you.",
+    "This bot is invite-only. If someone shared it with you, ask them to add you.",
   checking: "Checking…",
   coolOff:
     "You've sent a lot of checks in a short time. Please wait a little and try again.",

@@ -13,6 +13,7 @@ export type AuditEvent =
   | "unsupported_kind"
   | "cool_off"
   | "budget_exhausted"
+  | "queued"
   | "admitted"
   | "check_done"
   | "check_failed"

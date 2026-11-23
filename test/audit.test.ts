@@ -13,18 +13,18 @@ beforeEach(async () => {
   db = await freshDb();
   await allowSender(db, numbers.alice, { secret, now: t0 });
   await gate(db, forward(numbers.alice, t0), { secret, now: t0 });
-  await gate(db, forward(numbers.stranger, t0, { senderProfileName: "Stranger" }), { secret, now: t0 });
+  await gate(db, forward(numbers.stranger, t0, { sender: { key: numbers.stranger, displayName: "Stranger" } }), { secret, now: t0 });
 });
 
 describe("audit log", () => {
   it("records every decision", async () => {
     const events = (await db.select().from(auditLog)).map((r) => r.event);
-    expect(events).toEqual(["sender_allowed", "admitted", "unknown_sender"]);
+    expect(events).toEqual(["sender_allowed", "queued", "admitted", "unknown_sender"]);
   });
 
   it("never holds a phone number, a name or message text", async () => {
     const dump = JSON.stringify(await db.select().from(auditLog));
-    for (const leak of ["7700900", "0001", "0099", "Stranger", "parcel"]) {
+    for (const leak of ["alice", "stranger", "Stranger", "parcel"]) {
       expect(dump).not.toContain(leak);
     }
   });
@@ -39,6 +39,6 @@ describe("audit log", () => {
       const error = await db.execute(statement).then(() => null, (e: Error) => e);
       expect(String((error?.cause as Error | undefined)?.message)).toMatch(/append-only/);
     }
-    expect(await db.select().from(auditLog)).toHaveLength(3);
+    expect(await db.select().from(auditLog)).toHaveLength(4);
   });
 });

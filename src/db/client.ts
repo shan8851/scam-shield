@@ -1,6 +1,9 @@
 import { mkdirSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
+import { Pool } from "@neondatabase/serverless";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
+import { migrate as migrateNeon } from "drizzle-orm/neon-serverless/migrator";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "./schema";
@@ -29,4 +32,25 @@ export async function openPglite(dataDir?: string): Promise<Db> {
 /** Closes the underlying PGlite instance so a CLI process can exit. */
 export async function closePglite(db: Db): Promise<void> {
   await (db as unknown as { $client: PGlite }).$client.close();
+}
+
+/**
+ * Opens Neon (deployed, and the lock test) over its WebSocket pool, which
+ * supports real transactions and so the gate's advisory lock. Migrations
+ * are applied separately, with `pnpm db:migrate`.
+ */
+export function openNeon(url: string): { db: Db; close: () => Promise<void> } {
+  const pool = new Pool({ connectionString: url });
+  const db = drizzleNeon(pool, { schema }) as unknown as Db;
+  return { db, close: () => pool.end() };
+}
+
+/** Applies all migrations to a Neon database. */
+export async function migrateNeonDb(url: string): Promise<void> {
+  const pool = new Pool({ connectionString: url });
+  try {
+    await migrateNeon(drizzleNeon(pool, { schema }), { migrationsFolder });
+  } finally {
+    await pool.end();
+  }
 }

@@ -1,33 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { hashNumber, last4, normaliseNumber, senderHashSecret } from "../src/core/identity";
+import { hashSender, senderHashSecret, senderKey } from "../src/core/identity";
 import { secret } from "./helpers";
 
 describe("identity", () => {
-  it("normalises the ways a UK number gets written", () => {
-    for (const raw of ["07700 900001", "+44 7700 900001", "00447700900001", "447700900001"]) {
-      expect(normaliseNumber(raw)).toBe("447700900001");
-    }
+  it("qualifies an ID with its channel", () => {
+    expect(senderKey("tg", 123456)).toBe("tg:123456");
+    expect(senderKey("cli", " alice ")).toBe("cli:alice");
   });
 
-  it("rejects things that aren't phone numbers", () => {
-    expect(() => normaliseNumber("hello")).toThrow();
-    expect(() => normaliseNumber("123")).toThrow();
+  it("refuses an empty ID or an odd channel name", () => {
+    expect(() => senderKey("tg", "")).toThrow();
+    expect(() => senderKey("Tele gram", "1")).toThrow();
   });
 
-  it("hashes the same number the same way, whatever the format", () => {
-    expect(hashNumber("07700900001", secret)).toBe(hashNumber("+447700900001", secret));
+  it("gives the same ID on different channels different hashes", () => {
+    expect(hashSender("tg:1", secret)).not.toBe(hashSender("cli:1", secret));
   });
 
-  it("gives a different hash under a different secret", () => {
-    expect(hashNumber("07700900001", secret)).not.toBe(hashNumber("07700900001", `${secret}2`));
-  });
-
-  it("never contains the number", () => {
-    expect(hashNumber("07700900001", secret)).not.toContain("7700900001");
-  });
-
-  it("keeps only the last four digits for display", () => {
-    expect(last4("07700900001")).toBe("0001");
+  it("gives a different hash under a different secret, and never contains the ID", () => {
+    expect(hashSender("tg:987654321", secret)).not.toBe(hashSender("tg:987654321", `${secret}2`));
+    expect(hashSender("tg:987654321", secret)).not.toContain("987654321");
   });
 
   it("refuses a missing or short secret", () => {

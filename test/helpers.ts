@@ -7,17 +7,17 @@ export const secret = "test-secret-".padEnd(40, "x");
 
 export const freshDb = (): Promise<Db> => openPglite();
 
-/** Ofcom drama numbers: reserved for fiction, never a real person's. */
+/** Test senders, as channel-qualified keys. */
 export const numbers = {
-  alice: "07700900001",
-  bob: "07700900002",
-  stranger: "07700900099",
+  alice: "cli:alice",
+  bob: "cli:bob",
+  stranger: "cli:stranger",
 };
 
 export function forward(from: string, at: Date, overrides: Partial<Forward> = {}): Forward {
   return {
     externalId: `test-${randomUUID()}`,
-    senderNumber: from,
+    sender: { key: from },
     kind: "text",
     text: "Your parcel is held. Pay £1.99 at hxxps://parcel-fee[.]example",
     receivedAt: at,

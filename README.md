@@ -15,12 +15,12 @@ pnpm install
 cp .env.example .env   # then set SENDER_HASH_SECRET (openssl rand -hex 32)
 ```
 
-The CLI drives the core the same way the Telegram adapter will, against a local PGlite database in `.data/`. Use Ofcom's drama numbers (07700 900000–900999), which are reserved for fiction:
+The CLI drives the core the same way the Telegram adapter will, against a local PGlite database in `.data/`. Senders are any ID you like:
 
 ```bash
-pnpm cli allow 07700900001 --nickname Alice
-pnpm cli send --from 07700900001 "Royal Mail: your parcel is held, pay £1.99"
-pnpm cli send --from 07700900002 "hello?"     # not invited: one reply, then silence
+pnpm cli allow alice --nickname Alice
+pnpm cli send --from alice "Royal Mail: your parcel is held, pay £1.99"
+pnpm cli send --from bob "hello?"             # not invited: one reply, then silence
 pnpm cli pending
 pnpm cli audit
 ```
@@ -31,12 +31,13 @@ pnpm cli audit
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:neon   # the gate's lock against real Postgres (needs NEON_TEST_URL, a dev branch)
 pnpm eval        # the scam eval against the real model; see evals/README.md
 ```
 
 ## Privacy
 
-Phone numbers are never stored: senders are looked up by a keyed hash (HMAC-SHA256) whose secret lives only in the environment. The audit log holds decisions, not numbers or message text, and the database refuses to change or delete its rows.
+Sender IDs are never stored: senders are looked up by a keyed hash (HMAC-SHA256) of a channel-qualified ID, whose secret lives only in the environment. Images are never stored, only the channel's references to them. The audit log holds decisions, not IDs, names or message text, and the database refuses to change or delete its rows.
 
 ## Licence
 
