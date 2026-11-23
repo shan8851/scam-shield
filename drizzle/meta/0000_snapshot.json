@@ -1,5 +1,5 @@
 {
-  "id": "ee0aa67b-ac4f-463c-b0fb-dfcf1ea11947",
+  "id": "1c1ee655-cfc8-4070-9734-4af111a00366",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -98,6 +98,43 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'running'"
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verdict": {
+          "name": "verdict",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure": {
+          "name": "failure",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trace": {
+          "name": "trace",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tokens": {
+          "name": "tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -165,7 +202,7 @@
           "name": "sender_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "kind": {
           "name": "kind",
@@ -179,11 +216,31 @@
           "primaryKey": false,
           "notNull": false
         },
+        "media_refs": {
+          "name": "media_refs",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarded": {
+          "name": "forwarded",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "received_at": {
           "name": "received_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'queued'"
         },
         "check_id": {
           "name": "check_id",
@@ -192,7 +249,35 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "messages_sender_status_idx": {
+          "name": "messages_sender_status_idx",
+          "columns": [
+            {
+              "expression": "sender_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "messages_sender_id_senders_id_fk": {
           "name": "messages_sender_id_senders_id_fk",
@@ -246,8 +331,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "number_hash": {
-          "name": "number_hash",
+        "sender_hash": {
+          "name": "sender_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -264,14 +349,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "last4": {
-          "name": "last4",
+        "display_name": {
+          "name": "display_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "profile_name": {
-          "name": "profile_name",
+        "username": {
+          "name": "username",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -294,11 +379,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "senders_number_hash_unique": {
-          "name": "senders_number_hash_unique",
+        "senders_sender_hash_unique": {
+          "name": "senders_sender_hash_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "number_hash"
+            "sender_hash"
           ]
         }
       },

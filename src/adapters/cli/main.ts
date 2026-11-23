@@ -11,24 +11,24 @@ import { anthropicModel } from "../../agent/model";
 import { runAdmittedCheck } from "../../core/check";
 import type { Forward, ForwardKind } from "../../core/forward";
 import { gate } from "../../core/gate";
-import { senderHashSecret } from "../../core/identity";
+import { senderHashSecret, senderKey } from "../../core/identity";
 import { fixedReplies as replies } from "../../replies/copy";
 import { renderReply } from "../../replies/render";
 import { allowSender, denySender, listPending } from "../../core/senders";
 
 /**
- * The CLI channel adapter: drives the core the same way the WhatsApp adapter
- * will, against a local PGlite database. Used for local runs now and by the
+ * The CLI channel adapter: drives the core the same way the Telegram adapter
+ * does, against a local PGlite database. Used for local runs now and by the
  * eval later.
  */
 const usage = `Usage:
-  pnpm cli send --from <number> [--image <file>]... [--kind voice|document|video|other] [--id <message-id>] [--name <profile name>] "<text>"
-  pnpm cli allow <number> [--nickname <name>]
-  pnpm cli deny <number>
+  pnpm cli send --from <id> [--image <file>]... [--kind voice|document|video|other] [--id <message-id>] [--name <profile name>] "<text>"
+  pnpm cli allow <id> [--nickname <name>]
+  pnpm cli deny <id>
   pnpm cli pending
   pnpm cli audit [--limit <n>]
 
-Use Ofcom's drama numbers for testing, e.g. 07700900001.`;
+Senders are any ID you like; they become "cli:<id>" (e.g. alice).`;
 
 try {
   process.loadEnvFile(".env");
@@ -59,8 +59,7 @@ switch (command) {
     const images = (values.image ?? []).map(readImage);
     const forward: Forward = {
       externalId: values.id ?? `cli-${randomUUID()}`,
-      senderNumber: values.from,
-      senderProfileName: values.name,
+      sender: { key: senderKey("cli", values.from), displayName: values.name },
       kind: (values.kind as ForwardKind | undefined) ?? (images.length ? "image" : "text"),
       text: positionals.join(" ") || undefined,
       images,
@@ -86,14 +85,14 @@ switch (command) {
   case "allow": {
     const [number] = positionals;
     if (!number) throw new Error(usage);
-    await allowSender(db, number, { secret: senderHashSecret(), nickname: values.nickname });
+    await allowSender(db, senderKey("cli", number), { secret: senderHashSecret(), nickname: values.nickname });
     console.log("allowed");
     break;
   }
   case "deny": {
     const [number] = positionals;
     if (!number) throw new Error(usage);
-    await denySender(db, number, { secret: senderHashSecret() });
+    await denySender(db, senderKey("cli", number), { secret: senderHashSecret() });
     console.log("denied");
     break;
   }
@@ -101,7 +100,7 @@ switch (command) {
     const rows = await listPending(db);
     if (rows.length === 0) console.log("No one waiting.");
     for (const r of rows) {
-      console.log(`…${r.last4}  ${r.profileName ?? "(no name)"}  since ${r.since.toISOString()}`);
+      console.log(`${r.displayName ?? "(no name)"}${r.username ? ` @${r.username}` : ""}  since ${r.since.toISOString()}`);
     }
     break;
   }

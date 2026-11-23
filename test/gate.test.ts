@@ -19,10 +19,10 @@ beforeEach(async () => {
 
 describe("unknown senders", () => {
   it("get one invite-only reply, land in pending, and their message isn't stored", async () => {
-    const result = await send(numbers.stranger, t0, { senderProfileName: "Stranger" });
+    const result = await send(numbers.stranger, t0, { sender: { key: numbers.stranger, displayName: "Stranger", username: "stranger99" } });
     expect(result).toMatchObject({ outcome: "unknown_sender", reply: "inviteOnly" });
     expect(await db.select().from(messages)).toHaveLength(0);
-    expect(await listPending(db)).toMatchObject([{ last4: "0099", profileName: "Stranger" }]);
+    expect(await listPending(db)).toMatchObject([{ displayName: "Stranger", username: "stranger99" }]);
   });
 
   it("get silence after that", async () => {
@@ -31,11 +31,11 @@ describe("unknown senders", () => {
     expect(again).toMatchObject({ outcome: "pending_sender", reply: null });
   });
 
-  it("lose their partial number and name once approved, then get through", async () => {
-    const { senderId } = await send(numbers.stranger, t0, { senderProfileName: "Stranger" });
+  it("lose their name and username once approved, then get through", async () => {
+    const { senderId } = await send(numbers.stranger, t0, { sender: { key: numbers.stranger, displayName: "Stranger", username: "stranger99" } });
     await allowSender(db, numbers.stranger, { secret, now: minutes(t0, 5) });
     const [row] = await db.select().from(senders).where(eq(senders.id, senderId!));
-    expect(row).toMatchObject({ status: "allowed", last4: null, profileName: null });
+    expect(row).toMatchObject({ status: "allowed", displayName: null, username: null });
     expect(await listPending(db)).toHaveLength(0);
     expect((await send(numbers.stranger, minutes(t0, 6))).outcome).toBe("admitted");
   });
@@ -57,7 +57,7 @@ describe("allowed senders", () => {
   });
 
   it("can't be double-counted by a redelivered message", async () => {
-    const first = forward(numbers.alice, t0, { externalId: "wamid.same" });
+    const first = forward(numbers.alice, t0, { externalId: "tg-update-1" });
     await gate(db, first, { secret, now: t0 });
     const again = await gate(db, first, { secret, now: minutes(t0, 1) });
     expect(again).toMatchObject({ outcome: "duplicate", reply: null });
@@ -96,7 +96,7 @@ describe("cool-off", () => {
 
 describe("global daily budget", () => {
   it("stops everyone after 50 checks in 24 hours, telling each sender once", async () => {
-    const people = Array.from({ length: 11 }, (_, i) => `077009002${String(i).padStart(2, "0")}`);
+    const people = Array.from({ length: 11 }, (_, i) => `cli:person${i}`);
     for (const p of people) await allowSender(db, p, { secret, now: t0 });
     for (let i = 0; i < 50; i++) {
       const p = people[i % 10]!;

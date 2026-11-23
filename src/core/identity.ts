@@ -1,31 +1,19 @@
 import { createHmac } from "node:crypto";
 
 /**
- * Normalises a phone number to international digits only, the form WhatsApp
- * uses for sender IDs: "+44 7700 900001", "07700900001" and "447700900001"
- * all become "447700900001". A leading 0 is read as a UK number.
+ * A sender's identity is a channel-qualified ID, such as "tg:123456" for a
+ * Telegram user or "cli:alice" for the CLI. Only a keyed hash of it is ever
+ * stored: without the secret, a database dump can't be turned back into
+ * who sent what. The secret lives in the environment, never in the database.
  */
-export function normaliseNumber(raw: string): string {
-  let digits = raw.replace(/[^\d+]/g, "");
-  if (digits.startsWith("+")) digits = digits.slice(1);
-  else if (digits.startsWith("00")) digits = digits.slice(2);
-  else if (digits.startsWith("0")) digits = `44${digits.slice(1)}`;
-  if (!/^\d{8,15}$/.test(digits)) throw new Error("Not a phone number");
-  return digits;
+export function senderKey(channel: string, id: string | number): string {
+  const value = String(id).trim();
+  if (!/^[a-z]+$/.test(channel) || value === "") throw new Error("Bad sender key");
+  return `${channel}:${value}`;
 }
 
-/**
- * Keyed hash of a phone number. This is the only form in which a number is
- * stored. Without the secret, a database dump can't be turned back into
- * numbers; the secret lives in the environment, never in the database.
- */
-export function hashNumber(raw: string, secret: string): string {
-  return createHmac("sha256", secret).update(normaliseNumber(raw)).digest("hex");
-}
-
-/** Last four digits, shown to the admin for pending senders only. */
-export function last4(raw: string): string {
-  return normaliseNumber(raw).slice(-4);
+export function hashSender(key: string, secret: string): string {
+  return createHmac("sha256", secret).update(key).digest("hex");
 }
 
 /** Reads and checks the hashing secret from the environment. */
