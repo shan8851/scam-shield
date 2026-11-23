@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm db:migrate",
+  "outputDirectory": "public",
+  "functions": {
+    "api/telegram.ts": { "maxDuration": 120 }
+  }
+}

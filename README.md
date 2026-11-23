@@ -4,7 +4,7 @@ An invite-only Telegram bot that people forward suspicious messages to. It repli
 
 It's built as a small, governed agent harness: the plain Anthropic SDK, an agent loop written here, and a hand-written policy layer around it (a gate that runs before any model call, pre and post-tool hooks, approvals, budgets and an append-only audit log). The model never writes a word the user sees; replies come from fixed templates.
 
-> **Status: in development.** The gate, the agent loop and its hooks, the reply templates and a 42-case eval (gating CI) are in place. The Telegram bot and its admin controls come next. See [`docs/PLAN.md`](docs/PLAN.md) for the design and the build order.
+> **Status: in development.** The gate, the agent loop and its hooks, the reply templates, a 42-case eval (gating CI) and the Telegram webhook are in place. Admin controls on Telegram (approvals, pause, alerts) come next. See [`docs/PLAN.md`](docs/PLAN.md) for the design and the build order.
 
 ## Running it locally
 
@@ -23,6 +23,18 @@ pnpm cli send --from alice "Royal Mail: your parcel is held, pay £1.99"
 pnpm cli send --from bob "hello?"             # not invited: one reply, then silence
 pnpm cli pending
 pnpm cli audit
+```
+
+## Deploying
+
+The bot is one Vercel Function, `api/telegram.ts`, with Postgres on Neon. Each deploy runs `pnpm db:migrate` against the production database. It needs these environment variables:
+
+`DATABASE_URL`, `SENDER_HASH_SECRET`, `ANTHROPIC_API_KEY`, `SAFE_BROWSING_API_KEY`, `TELEGRAM_BOT_TOKEN`, `ADMIN_TELEGRAM_ID`, `TELEGRAM_WEBHOOK_SECRET`.
+
+Then point Telegram at it once:
+
+```bash
+pnpm telegram:webhook https://<your-deployment>/api/telegram
 ```
 
 ## Checks

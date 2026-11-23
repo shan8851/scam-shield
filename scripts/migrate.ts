@@ -1,4 +1,4 @@
-import { migrateNeonDb } from "../src/db/client";
+import { migrateNeonDb } from "../src/db/neon";
 
 /** Applies migrations to the database in DATABASE_URL (the Neon dev branch locally, production on deploy). */
 try {

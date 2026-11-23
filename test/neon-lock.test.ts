@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { migrateNeonDb, openNeon, type Db } from "../src/db/client";
+import type { Db } from "../src/db/client";
+import { migrateNeonDb, openNeon } from "../src/db/neon";
 import { count, eq } from "drizzle-orm";
 import { admit, intake } from "../src/core/gate";
 import { checks } from "../src/db/schema";
