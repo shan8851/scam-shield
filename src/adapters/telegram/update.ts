@@ -1,5 +1,5 @@
-import type { Forward, ForwardKind } from "../../core/forward";
-import { senderKey } from "../../core/identity";
+import type { Forward, ForwardKind } from "../../core/forward.js";
+import { senderKey } from "../../core/identity.js";
 
 /**
  * The parts of a Telegram update the bot reads. Everything else is ignored.

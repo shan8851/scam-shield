@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { runCheck, type CheckInput, type CheckOutcome, type LoopDeps } from "../agent/loop";
-import type { Db } from "../db/client";
-import { checks } from "../db/schema";
-import { audit } from "./audit";
+import { runCheck, type CheckInput, type CheckOutcome, type LoopDeps } from "../agent/loop.js";
+import type { Db } from "../db/client.js";
+import { checks } from "../db/schema.js";
+import { audit } from "./audit.js";
 
 /**
  * Runs the agent for a check the gate admitted, then records the outcome and

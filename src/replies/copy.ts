@@ -1,4 +1,4 @@
-import type { NextStep, Organisation, Signal, Verdict } from "../agent/vocabulary";
+import type { NextStep, Organisation, Signal, Verdict } from "../agent/vocabulary.js";
 
 /**
  * Every word the bot can say. This is the file to edit for tone and wording;

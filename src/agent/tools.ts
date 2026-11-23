@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { nextSteps, organisations, signals, verdicts } from "./vocabulary";
+import { nextSteps, organisations, signals, verdicts } from "./vocabulary.js";
 
 /** The three tools the model can call. `strict` keeps inputs to the schema. */
 export const tools: Anthropic.Beta.BetaTool[] = [

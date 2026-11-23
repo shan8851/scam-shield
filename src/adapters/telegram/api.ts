@@ -1,4 +1,4 @@
-import type { ImageInput } from "../../agent/loop";
+import type { ImageInput } from "../../agent/loop.js";
 
 /**
  * The few Bot API calls the bot makes, over plain fetch. The token stays in

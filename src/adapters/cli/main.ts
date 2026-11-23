@@ -3,18 +3,18 @@ import { readFileSync } from "node:fs";
 import { extname } from "node:path";
 import { parseArgs } from "node:util";
 import { desc } from "drizzle-orm";
-import { closePglite, openPglite } from "../../db/client";
-import { auditLog } from "../../db/schema";
-import { liveLookups } from "../../agent/lookups";
-import type { ImageInput } from "../../agent/loop";
-import { anthropicModel } from "../../agent/model";
-import { runAdmittedCheck } from "../../core/check";
-import type { Forward, ForwardKind } from "../../core/forward";
-import { gate } from "../../core/gate";
-import { senderHashSecret, senderKey } from "../../core/identity";
-import { fixedReplies as replies } from "../../replies/copy";
-import { renderReply } from "../../replies/render";
-import { allowSender, denySender, listPending } from "../../core/senders";
+import { closePglite, openPglite } from "../../db/client.js";
+import { auditLog } from "../../db/schema.js";
+import { liveLookups } from "../../agent/lookups.js";
+import type { ImageInput } from "../../agent/loop.js";
+import { anthropicModel } from "../../agent/model.js";
+import { runAdmittedCheck } from "../../core/check.js";
+import type { Forward, ForwardKind } from "../../core/forward.js";
+import { gate } from "../../core/gate.js";
+import { senderHashSecret, senderKey } from "../../core/identity.js";
+import { fixedReplies as replies } from "../../replies/copy.js";
+import { renderReply } from "../../replies/render.js";
+import { allowSender, denySender, listPending } from "../../core/senders.js";
 
 /**
  * The CLI channel adapter: drives the core the same way the Telegram adapter

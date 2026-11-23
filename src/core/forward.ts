@@ -1,4 +1,4 @@
-import type { ImageInput } from "../agent/loop";
+import type { ImageInput } from "../agent/loop.js";
 
 /**
  * A message as the core sees it, whatever channel it came from. Channel
