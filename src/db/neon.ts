@@ -1,8 +1,8 @@
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { migrate } from "drizzle-orm/neon-serverless/migrator";
-import type { Db } from "./client";
-import * as schema from "./schema";
+import type { Db } from "./client.js";
+import * as schema from "./schema.js";
 
 /**
  * Opens Neon (deployed, and the lock test) over its WebSocket pool, which

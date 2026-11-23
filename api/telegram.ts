@@ -1,12 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 import { waitUntil } from "@vercel/functions";
-import { liveLookups } from "../src/agent/lookups";
-import { anthropicModel } from "../src/agent/model";
-import { handleUpdate } from "../src/adapters/telegram/handler";
-import { telegramApi } from "../src/adapters/telegram/api";
-import type { TelegramUpdate } from "../src/adapters/telegram/update";
-import { senderHashSecret, senderKey } from "../src/core/identity";
-import { openNeon } from "../src/db/neon";
+import { liveLookups } from "../src/agent/lookups.js";
+import { anthropicModel } from "../src/agent/model.js";
+import { handleUpdate } from "../src/adapters/telegram/handler.js";
+import { telegramApi } from "../src/adapters/telegram/api.js";
+import type { TelegramUpdate } from "../src/adapters/telegram/update.js";
+import { senderHashSecret, senderKey } from "../src/core/identity.js";
+import { openNeon } from "../src/db/neon.js";
 
 /**
  * The Telegram webhook. Telegram sends the secret we registered in a header

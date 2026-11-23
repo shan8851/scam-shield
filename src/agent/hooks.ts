@@ -1,4 +1,4 @@
-import type { DomainAgeResult, UrlReputationResult } from "./lookups";
+import type { DomainAgeResult, UrlReputationResult } from "./lookups.js";
 
 /**
  * The hook layer. Four phases wrap every step of the agent loop:

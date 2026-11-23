@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import type { Db } from "../db/client";
-import { senders } from "../db/schema";
-import { audit } from "./audit";
-import { hashSender } from "./identity";
+import type { Db } from "../db/client.js";
+import { senders } from "../db/schema.js";
+import { audit } from "./audit.js";
+import { hashSender } from "./identity.js";
 
 /**
  * Approves a sender by their channel-qualified key, or pre-approves one that

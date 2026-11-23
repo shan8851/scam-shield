@@ -1,12 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { domainsInText, publicDomain } from "./domains";
-import { runPhase, type Hook, type LookupResult, type Phase, type RunState, type ToolCall, type TraceEntry } from "./hooks";
-import type { Lookups } from "./lookups";
-import type { ModelClient } from "./model";
-import { defaultHooks, lookupTarget, VERDICT_TOOL } from "./policies";
-import { nudge, systemPrompt, wrapForwarded } from "./prompt";
-import { tools } from "./tools";
-import type { VerdictSubmission } from "./vocabulary";
+import { domainsInText, publicDomain } from "./domains.js";
+import { runPhase, type Hook, type LookupResult, type Phase, type RunState, type ToolCall, type TraceEntry } from "./hooks.js";
+import type { Lookups } from "./lookups.js";
+import type { ModelClient } from "./model.js";
+import { defaultHooks, lookupTarget, VERDICT_TOOL } from "./policies.js";
+import { nudge, systemPrompt, wrapForwarded } from "./prompt.js";
+import { tools } from "./tools.js";
+import type { VerdictSubmission } from "./vocabulary.js";
 
 export interface ImageInput {
   mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";

@@ -1,4 +1,4 @@
-import { publicDomain, refang } from "./domains";
+import { publicDomain, refang } from "./domains.js";
 
 /**
  * Results the lookup tools hand back to the model. These are the only fields

@@ -3,7 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import * as schema from "./schema";
+import * as schema from "./schema.js";
 
 /**
  * The database type the core works against. Any Postgres driver Drizzle

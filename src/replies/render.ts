@@ -1,6 +1,6 @@
-import type { LookupResult } from "../agent/hooks";
-import type { CheckOutcome } from "../agent/loop";
-import type { VerdictSubmission } from "../agent/vocabulary";
+import type { LookupResult } from "../agent/hooks.js";
+import type { CheckOutcome } from "../agent/loop.js";
+import type { VerdictSubmission } from "../agent/vocabulary.js";
 import {
   fixedReplies,
   footer,
@@ -15,7 +15,7 @@ import {
   signalPriority,
   verdictHeader,
   whatToDoLabel,
-} from "./copy";
+} from "./copy.js";
 
 /**
  * Turns a finished check into the message the person receives. Only enums

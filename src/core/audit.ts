@@ -1,5 +1,5 @@
-import type { Db } from "../db/client";
-import { auditLog } from "../db/schema";
+import type { Db } from "../db/client.js";
+import { auditLog } from "../db/schema.js";
 
 /**
  * Every policy decision the gate makes. Kept as a closed list so the audit

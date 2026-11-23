@@ -1,12 +1,12 @@
-import type { CheckInput, LoopDeps } from "../../agent/loop";
-import { runAdmittedCheck } from "../../core/check";
-import { admit, intake } from "../../core/gate";
-import { introduce } from "../../core/senders";
-import type { Db } from "../../db/client";
-import { fixedReplies } from "../../replies/copy";
-import { renderReply } from "../../replies/render";
-import type { TelegramApi } from "./api";
-import { parseUpdate, type TelegramUpdate } from "./update";
+import type { CheckInput, LoopDeps } from "../../agent/loop.js";
+import { runAdmittedCheck } from "../../core/check.js";
+import { admit, intake } from "../../core/gate.js";
+import { introduce } from "../../core/senders.js";
+import type { Db } from "../../db/client.js";
+import { fixedReplies } from "../../replies/copy.js";
+import { renderReply } from "../../replies/render.js";
+import type { TelegramApi } from "./api.js";
+import { parseUpdate, type TelegramUpdate } from "./update.js";
 
 /** How long to wait for the rest of a burst before checking it. */
 export const GATHER_MS = 5_000;

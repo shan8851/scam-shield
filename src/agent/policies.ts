@@ -1,12 +1,12 @@
-import { publicDomain } from "./domains";
-import type { Hook, LookupResult, ToolCall } from "./hooks";
+import { publicDomain } from "./domains.js";
+import type { Hook, LookupResult, ToolCall } from "./hooks.js";
 import {
   nextSteps,
   organisations,
   signals,
   verdicts,
   type VerdictSubmission,
-} from "./vocabulary";
+} from "./vocabulary.js";
 
 /**
  * Caps for one check: 6 model turns, 120k tokens, 5 lookups. A screenshot is

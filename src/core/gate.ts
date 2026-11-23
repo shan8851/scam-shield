@@ -1,11 +1,11 @@
 import { and, asc, count, desc, eq, gt, inArray, sql } from "drizzle-orm";
-import type { Db } from "../db/client";
-import { auditLog, checks, messages, senders } from "../db/schema";
-import type { ReplyKey } from "../replies/copy";
-import { audit, type AuditEvent } from "./audit";
-import { limits } from "./config";
-import { supportedKinds, type Forward, type ForwardKind } from "./forward";
-import { hashSender } from "./identity";
+import type { Db } from "../db/client.js";
+import { auditLog, checks, messages, senders } from "../db/schema.js";
+import type { ReplyKey } from "../replies/copy.js";
+import { audit, type AuditEvent } from "./audit.js";
+import { limits } from "./config.js";
+import { supportedKinds, type Forward, type ForwardKind } from "./forward.js";
+import { hashSender } from "./identity.js";
 
 /**
  * The gate decides what happens to inbound messages before any model is
