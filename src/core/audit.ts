@@ -21,7 +21,9 @@ export type AuditEvent =
   | "sender_denied"
   | "paused"
   | "resumed"
-  | "paused_reply";
+  | "paused_reply"
+  | "alert_sent"
+  | "retention_run";
 
 /** Appends one row. The table rejects updates and deletes at the database. */
 export async function audit(

@@ -242,3 +242,20 @@ describe("admin controls", () => {
     expect(toAdmin().at(-1)?.text).toContain("People: 1 allowed, 1 waiting");
   });
 });
+
+describe("alerts to the admin", () => {
+  it("alerts once when a third stranger turns up within the hour", async () => {
+    for (const id of [701, 702, 703, 704]) await deliver(message(id, { text: "hi" }));
+    expect(toAdmin().filter((s) => s.text === adminText.alert.stranger_burst)).toHaveLength(1);
+  });
+
+  it("marks a crashed check as failed, and alerts after three in a row", async () => {
+    deps.api = { ...api, downloadImage: async () => { throw new Error("download failed"); } };
+    for (let i = 0; i < 3; i++) {
+      await deliver(message(ALICE, { photo: [{ file_id: `x${i}` }] }));
+      await settle();
+    }
+    expect((await db.select().from(checks)).every((c) => c.status === "failed")).toBe(true);
+    expect(toAdmin().filter((s) => s.text === adminText.alert.failures_in_a_row)).toHaveLength(1);
+  });
+});

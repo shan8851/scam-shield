@@ -93,6 +93,7 @@ export async function intake(
           displayName: forward.sender.displayName ?? null,
           username: forward.sender.username ?? null,
           contactRef: forward.sender.contactRef ?? null,
+          createdAt: now,
         })
         .returning({ id: senders.id });
       return decide("unknown_sender", "inviteOnly", created!.id);

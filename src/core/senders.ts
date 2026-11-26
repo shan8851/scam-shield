@@ -121,6 +121,7 @@ export async function introduce(
           displayName: sender.displayName ?? null,
           username: sender.username ?? null,
           contactRef: sender.contactRef ?? null,
+          createdAt: now,
         })
         .returning({ id: senders.id });
       await audit(tx, "unknown_sender", created!.id, { replied: true }, now);

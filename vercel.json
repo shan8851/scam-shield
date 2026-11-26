@@ -3,6 +3,14 @@
   "buildCommand": "pnpm db:migrate",
   "outputDirectory": "public",
   "functions": {
-    "api/telegram.ts": { "maxDuration": 120 }
-  }
+    "api/telegram.ts": {
+      "maxDuration": 120
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/retention",
+      "schedule": "0 4 * * *"
+    }
+  ]
 }
