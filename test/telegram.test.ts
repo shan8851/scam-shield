@@ -9,7 +9,7 @@ import { parseUpdate, type TelegramUpdate } from "../src/adapters/telegram/updat
 import { allowSender } from "../src/core/senders";
 import type { Db } from "../src/db/client";
 import { checks } from "../src/db/schema";
-import { fixedReplies } from "../src/replies/copy";
+import { adminText, approvedWelcome, fixedReplies } from "../src/replies/copy";
 import { freshDb, secret } from "./helpers";
 
 const ALICE = 111;
@@ -48,16 +48,21 @@ function verdictModel(): ModelClient & { imagesSeen: number[] } {
 }
 
 let db: Db;
-let sent: { chatId: number; text: string }[];
+let sent: { chatId: number; text: string; buttons?: { text: string; data: string }[][] }[];
+let edits: { chatId: number; text: string }[];
 let pending: Promise<unknown>[];
 let windows: (() => void)[];
 let model: ReturnType<typeof verdictModel>;
 let deps: HandlerDeps;
 
 const api: TelegramApi = {
-  async sendMessage(chatId, text) {
-    sent.push({ chatId, text });
+  async sendMessage(chatId, text, opts) {
+    sent.push({ chatId, text, ...(opts?.buttons ? { buttons: opts.buttons } : {}) });
   },
+  async editMessage(chatId, _messageId, text) {
+    edits.push({ chatId, text });
+  },
+  async answerButton() {},
   async downloadImage(): Promise<ImageInput> {
     return { mediaType: "image/jpeg", data: "aGk=" };
   },
@@ -76,6 +81,7 @@ const settle = async () => {
 beforeEach(async () => {
   db = await freshDb();
   sent = [];
+  edits = [];
   pending = [];
   windows = [];
   model = verdictModel();
@@ -133,7 +139,7 @@ describe("the webhook handler", () => {
     await deliver(message(222, { text: "hello" }));
     await deliver(message(222, { text: "hello??" }));
     await settle();
-    expect(sent).toEqual([{ chatId: 222, text: fixedReplies.inviteOnly }]);
+    expect(sent.filter((s) => s.chatId === 222)).toEqual([{ chatId: 222, text: fixedReplies.inviteOnly }]);
   });
 
   it("ignores a redelivered update", async () => {
@@ -158,5 +164,81 @@ describe("the webhook handler", () => {
     await deliver(message(ALICE, { photo: [{ file_id: "x" }] }));
     await settle();
     expect(sent.map((s) => s.text)).toEqual([fixedReplies.checking, fixedReplies.checkFailed]);
+  });
+});
+
+function press(from: number, data: string): TelegramUpdate {
+  return {
+    update_id: ++updateId,
+    callback_query: { id: `cb${updateId}`, from: { id: from }, data, message: { message_id: 1, chat: { id: from } } },
+  } as TelegramUpdate;
+}
+
+const toAdmin = () => sent.filter((s) => s.chatId === ADMIN);
+
+describe("admin controls", () => {
+  it("asks the admin about a stranger, and welcomes them once approved", async () => {
+    await deliver(message(333, { text: "hello", from: { id: 333, first_name: "Robin", username: "robin_k" } }));
+    const [ask] = toAdmin();
+    expect(ask?.text).toBe("New request: Robin (@robin_k) wants to use the bot.");
+    const approve = ask!.buttons![0]![0]!.data;
+    expect(approve).toMatch(/^approve:/);
+
+    await deliver(press(ADMIN, approve));
+    expect(edits).toEqual([{ chatId: ADMIN, text: "✅ Approved Robin (@robin_k)." }]);
+    expect(sent.at(-1)).toEqual({ chatId: 333, text: approvedWelcome });
+
+    await deliver(message(333, { text: "is this real?", from: { id: 333, first_name: "Robin" } }));
+    await settle();
+    expect(sent.at(-1)?.text).toContain("Likely a scam");
+  });
+
+  it("ignores button presses from anyone but the admin", async () => {
+    await deliver(message(444, { text: "hello" }));
+    const approve = toAdmin()[0]!.buttons![0]![0]!.data;
+    await deliver(press(444, approve));
+    expect(edits).toEqual([]);
+    await deliver(message(444, { text: "let me in" }));
+    expect(sent.filter((s) => s.chatId === 444)).toHaveLength(1);
+  });
+
+  it("denies quietly, and a second press on the same request does nothing", async () => {
+    await deliver(message(555, { text: "hello", from: { id: 555, first_name: "Spam" } }));
+    const deny = toAdmin()[0]!.buttons![0]![1]!.data;
+    await deliver(press(ADMIN, deny));
+    await deliver(press(ADMIN, deny));
+    expect(edits).toEqual([{ chatId: ADMIN, text: "❌ Denied Spam." }]);
+    expect(sent.filter((s) => s.chatId === 555)).toHaveLength(1);
+  });
+
+  it("pauses and resumes checks, telling senders once while paused", async () => {
+    await deliver(message(ADMIN, { text: "/pause" }));
+    expect(toAdmin().at(-1)?.text).toBe(adminText.paused);
+    await deliver(message(ALICE, { text: "check this" }));
+    await deliver(message(ALICE, { text: "and this" }));
+    await settle();
+    expect(sent.filter((s) => s.chatId === ALICE).map((s) => s.text)).toEqual([fixedReplies.paused]);
+    expect(await db.select().from(checks)).toHaveLength(0);
+
+    await deliver(message(ADMIN, { text: "/resume" }));
+    await deliver(message(ALICE, { text: "check this now" }));
+    await settle();
+    expect(sent.at(-1)?.text).toContain("Likely a scam");
+  });
+
+  it("only answers admin commands from the admin", async () => {
+    await deliver(message(ALICE, { text: "/pause" }));
+    await deliver(message(ALICE, { text: "is this a scam?" }));
+    await settle();
+    expect(sent.at(-1)?.text).toContain("Likely a scam");
+  });
+
+  it("lists who's waiting, with buttons, and reports status", async () => {
+    await deliver(message(666, { text: "hi", from: { id: 666, first_name: "Kim" } }));
+    sent = [];
+    await deliver(message(ADMIN, { text: "/pending" }));
+    expect(toAdmin().map((s) => s.text)).toEqual([adminText.pendingHeader(1), "New request: Kim wants to use the bot."]);
+    await deliver(message(ADMIN, { text: "/status" }));
+    expect(toAdmin().at(-1)?.text).toContain("People: 1 allowed, 1 waiting");
   });
 });

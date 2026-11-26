@@ -4,8 +4,18 @@ import type { ImageInput } from "../../agent/loop.js";
  * The few Bot API calls the bot makes, over plain fetch. The token stays in
  * the environment and never appears in logs or errors.
  */
+export interface Button {
+  text: string;
+  data: string;
+}
+
 export interface TelegramApi {
-  sendMessage(chatId: number, text: string): Promise<void>;
+  /** Sends a reply. `plain` skips Markdown (for text that includes names people chose). */
+  sendMessage(chatId: number, text: string, opts?: { plain?: boolean; buttons?: Button[][] }): Promise<void>;
+  /** Replaces a message's text and removes its buttons (after a decision). */
+  editMessage(chatId: number, messageId: number, text: string): Promise<void>;
+  /** Acknowledges a button press, so Telegram stops showing a spinner. */
+  answerButton(callbackId: string, text?: string): Promise<void>;
   downloadImage(fileId: string): Promise<ImageInput>;
 }
 
@@ -26,15 +36,29 @@ export function telegramApi(token: string, doFetch: typeof fetch = fetch): Teleg
   };
 
   return {
-    async sendMessage(chatId, text) {
+    async sendMessage(chatId, text, opts = {}) {
+      const base = {
+        chat_id: chatId,
+        link_preview_options: { is_disabled: true },
+        ...(opts.buttons
+          ? { reply_markup: { inline_keyboard: opts.buttons.map((row) => row.map((b) => ({ text: b.text, callback_data: b.data }))) } }
+          : {}),
+      };
+      if (opts.plain) return void (await call("sendMessage", { ...base, text }));
       try {
         // Replies use Telegram's Markdown (*bold*, _italic_). If Telegram
         // can't parse it, send the same words as plain text rather than nothing.
-        await call("sendMessage", { chat_id: chatId, text, parse_mode: "Markdown", link_preview_options: { is_disabled: true } });
+        await call("sendMessage", { ...base, text, parse_mode: "Markdown" });
       } catch (error) {
         if (!(error instanceof TelegramError) || error.status !== 400) throw error;
-        await call("sendMessage", { chat_id: chatId, text: text.replace(/[*_]/g, ""), link_preview_options: { is_disabled: true } });
+        await call("sendMessage", { ...base, text: text.replace(/[*_]/g, "") });
       }
+    },
+    async editMessage(chatId, messageId, text) {
+      await call("editMessageText", { chat_id: chatId, message_id: messageId, text });
+    },
+    async answerButton(callbackId, text) {
+      await call("answerCallbackQuery", { callback_query_id: callbackId, ...(text ? { text } : {}) });
     },
     async downloadImage(fileId) {
       const file = await call<{ file_path?: string; file_size?: number }>("getFile", { file_id: fileId });
