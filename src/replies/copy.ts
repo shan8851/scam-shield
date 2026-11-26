@@ -60,6 +60,11 @@ export const adminText = {
       `Last 24 hours: ${s.checks24h} checks, ${s.failed24h} failed, ${s.tokens24h.toLocaleString("en-GB")} tokens`,
       `People: ${s.allowed} allowed, ${s.pending} waiting`,
     ].join("\n"),
+  alert: {
+    budget_exhausted: "⚠️ The daily budget has run out. New checks are turned away until it frees up.",
+    failures_in_a_row: "⚠️ The last 3 checks all failed. Something may be broken: check the Vercel logs.",
+    stranger_burst: "⚠️ Several unknown people have messaged the bot in the last hour. Use /pending to see them, or /pause if it looks like abuse.",
+  },
   approveButton: "✅ Approve",
   denyButton: "❌ Deny",
 };

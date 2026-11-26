@@ -1,5 +1,6 @@
 import type { CheckInput, LoopDeps } from "../../agent/loop.js";
-import { runAdmittedCheck } from "../../core/check.js";
+import { alertFor, type AlertKind } from "../../core/alerts.js";
+import { markCrashed, runAdmittedCheck } from "../../core/check.js";
 import { admit, intake } from "../../core/gate.js";
 import { decideById, introduce, listPending } from "../../core/senders.js";
 import { setPaused } from "../../core/settings.js";
@@ -45,13 +46,19 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
     if (parsed.command !== "start" && parsed.command !== "help") return log("unknown_command");
     const { reply, newPendingId } = await introduce(deps.db, parsed.sender, { secret: deps.secret, adminKey: deps.adminKey });
     if (reply) await deps.api.sendMessage(parsed.chatId, fixedReplies[reply]);
-    if (newPendingId) await askAdmin(deps, newPendingId, parsed.sender);
+    if (newPendingId) {
+      await askAdmin(deps, newPendingId, parsed.sender);
+      await alertIf(deps, await alertFor(deps.db, "unknown_sender"));
+    }
     return;
   }
 
   const taken = await intake(deps.db, parsed.forward, { secret: deps.secret });
   if (taken.reply) await deps.api.sendMessage(parsed.chatId, fixedReplies[taken.reply]);
-  if (taken.outcome === "unknown_sender") await askAdmin(deps, taken.senderId, parsed.forward.sender);
+  if (taken.outcome === "unknown_sender") {
+    await askAdmin(deps, taken.senderId, parsed.forward.sender);
+    await alertIf(deps, await alertFor(deps.db, "unknown_sender"));
+  }
   if (taken.outcome !== "queued") return log(taken.outcome);
 
   deps.waitUntil(
@@ -73,6 +80,12 @@ const decisionButtons = (senderId: string) => [
     { text: adminText.denyButton, data: `deny:${senderId}` },
   ],
 ];
+
+/** Sends an alert to the admin, if one was raised. */
+async function alertIf(deps: HandlerDeps, kind: AlertKind | null) {
+  const chat = adminChatId(deps);
+  if (kind && chat !== null) await deps.api.sendMessage(chat, adminText.alert[kind], { plain: true });
+}
 
 /** Tells the admin someone new wants in, with approve and deny buttons. */
 async function askAdmin(deps: HandlerDeps, senderId: string, sender: { displayName?: string; username?: string }) {
@@ -132,15 +145,20 @@ async function checkBurst(deps: HandlerDeps, chatId: number, senderId: string, m
   await (deps.sleep ?? sleep)(GATHER_MS);
   const admitted = await admit(deps.db, senderId, { asOf: messageId });
   if (admitted.reply) await deps.api.sendMessage(chatId, fixedReplies[admitted.reply]);
+  if (admitted.outcome === "budget_exhausted") await alertIf(deps, await alertFor(deps.db, "budget_exhausted"));
   if (admitted.outcome !== "admitted") return;
 
+  const check = { id: admitted.checkId!, senderId };
   try {
     const input = await buildInput(deps.api, admitted.batch!);
-    const outcome = await runAdmittedCheck(deps.db, { id: admitted.checkId!, senderId }, input, deps.agent);
+    const outcome = await runAdmittedCheck(deps.db, check, input, deps.agent);
     await deps.api.sendMessage(chatId, renderReply(outcome));
+    if (outcome.status === "failed") await alertIf(deps, await alertFor(deps.db, "check_failed"));
   } catch (error) {
     // Never leave someone waiting after "Checking…".
     await deps.api.sendMessage(chatId, fixedReplies.checkFailed);
+    await markCrashed(deps.db, check, error instanceof Error ? error.message.slice(0, 200) : "crashed");
+    await alertIf(deps, await alertFor(deps.db, "check_failed"));
     throw error;
   }
 }

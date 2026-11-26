@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
 import { parseArgs } from "node:util";
-import { desc } from "drizzle-orm";
-import { closePglite, openPglite } from "../../db/client.js";
-import { auditLog } from "../../db/schema.js";
+import { desc, eq } from "drizzle-orm";
+import { closePglite, openPglite, type Db } from "../../db/client.js";
+import { openNeon } from "../../db/neon.js";
+import { auditLog, checks } from "../../db/schema.js";
 import { liveLookups } from "../../agent/lookups.js";
 import type { ImageInput } from "../../agent/loop.js";
 import { anthropicModel } from "../../agent/model.js";
@@ -18,8 +19,8 @@ import { allowSender, denySender, listPending } from "../../core/senders.js";
 
 /**
  * The CLI channel adapter: drives the core the same way the Telegram adapter
- * does, against a local PGlite database. Used for local runs now and by the
- * eval later.
+ * does, against a local PGlite database. With --neon it uses DATABASE_URL
+ * instead, which is how traces are read from the deployed bot.
  */
 const usage = `Usage:
   pnpm cli send --from <id> [--image <file>]... [--kind voice|document|video|other] [--id <message-id>] [--name <profile name>] "<text>"
@@ -27,6 +28,10 @@ const usage = `Usage:
   pnpm cli deny <id>
   pnpm cli pending
   pnpm cli audit [--limit <n>]
+  pnpm cli checks [--limit <n>]            recent checks, newest first
+  pnpm cli trace [<check-id>]              one check's trace (default: the latest)
+
+Add --neon to any command to use DATABASE_URL (Neon) instead of local PGlite.
 
 Senders are any ID you like; they become "cli:<id>" (e.g. alice).`;
 
@@ -48,10 +53,19 @@ const { values, positionals } = parseArgs({
     name: { type: "string" },
     nickname: { type: "string" },
     limit: { type: "string", default: "20" },
+    neon: { type: "boolean", default: false },
   },
 });
 
-const db = await openPglite(process.env.PGLITE_DATA_DIR ?? ".data/pglite");
+let db: Db;
+let close: () => Promise<void>;
+if (values.neon) {
+  if (!process.env.DATABASE_URL) throw new Error("--neon needs DATABASE_URL");
+  ({ db, close } = openNeon(process.env.DATABASE_URL));
+} else {
+  db = await openPglite(process.env.PGLITE_DATA_DIR ?? ".data/pglite");
+  close = () => closePglite(db);
+}
 
 switch (command) {
   case "send": {
@@ -115,11 +129,34 @@ switch (command) {
     }
     break;
   }
+  case "checks": {
+    const rows = await db.select().from(checks).orderBy(desc(checks.createdAt)).limit(Number(values.limit));
+    for (const r of rows) {
+      const verdict = (r.verdict as { verdict?: string } | null)?.verdict ?? r.failure ?? "";
+      console.log(`${r.createdAt.toISOString()}  ${r.id}  ${r.status.padEnd(7)}  ${String(r.tokens ?? "-").padStart(6)} tokens  ${verdict}`);
+    }
+    break;
+  }
+  case "trace": {
+    const [id] = positionals;
+    const [row] = id
+      ? await db.select().from(checks).where(eq(checks.id, id))
+      : await db.select().from(checks).orderBy(desc(checks.createdAt)).limit(1);
+    if (!row) {
+      console.log("No such check.");
+      break;
+    }
+    console.log(`check ${row.id}  ${row.status}  ${row.createdAt.toISOString()}  ${row.tokens ?? "-"} tokens`);
+    for (const e of (row.trace ?? []) as Parameters<typeof describe>[0][]) console.log(`  ${describe(e)}`);
+    if (row.verdict) console.log(`verdict: ${JSON.stringify(row.verdict)}`);
+    if (row.failure) console.log(`failure: ${row.failure}`);
+    break;
+  }
   default:
     console.log(usage);
 }
 
-await closePglite(db);
+await close();
 
 function readImage(path: string): ImageInput {
   const types: Record<string, ImageInput["mediaType"]> = {
