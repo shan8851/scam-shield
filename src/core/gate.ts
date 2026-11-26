@@ -6,6 +6,7 @@ import { audit, type AuditEvent } from "./audit.js";
 import { limits } from "./config.js";
 import { supportedKinds, type Forward, type ForwardKind } from "./forward.js";
 import { hashSender } from "./identity.js";
+import { isPaused } from "./settings.js";
 
 /**
  * The gate decides what happens to inbound messages before any model is
@@ -30,6 +31,7 @@ const GATE_LOCK_KEY = 7_220_001;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export type IntakeOutcome =
+  | "paused"
   | "unknown_sender"
   | "pending_sender"
   | "denied_sender"
@@ -46,7 +48,7 @@ export interface IntakeResult {
   messageId?: string;
 }
 
-export type AdmitOutcome = "admitted" | "superseded" | "nothing_queued" | "cool_off" | "budget_exhausted";
+export type AdmitOutcome = "admitted" | "superseded" | "nothing_queued" | "paused" | "cool_off" | "budget_exhausted";
 
 export interface QueuedMessage {
   text: string | null;
@@ -90,12 +92,21 @@ export async function intake(
           status: "pending",
           displayName: forward.sender.displayName ?? null,
           username: forward.sender.username ?? null,
+          contactRef: forward.sender.contactRef ?? null,
         })
         .returning({ id: senders.id });
       return decide("unknown_sender", "inviteOnly", created!.id);
     }
     if (sender.status === "pending") return decide("pending_sender", null, sender.id);
     if (sender.status === "denied") return decide("denied_sender", null, sender.id);
+
+    // The kill switch: nothing is stored or checked while paused. Say so once
+    // every ten minutes, not on every message.
+    if (await isPaused(tx)) {
+      const told = await toldRecently(tx, sender.id, "paused_reply", since(now, 10));
+      await audit(tx, "paused_reply", sender.id, { replied: !told }, now);
+      return { outcome: "paused", reply: told ? null : "paused", senderId: sender.id };
+    }
 
     // 2. Store the message; a second delivery of the same ID stops here.
     const supported = supportedKinds.has(forward.kind);
@@ -154,6 +165,13 @@ export async function admit(
     if (opts.asOf && latest!.id !== opts.asOf) return { outcome: "superseded", reply: null };
 
     const ids = queued.map((m) => m.id);
+
+    // Paused after these were queued: drop them quietly (intake has already
+    // told the sender, or will on their next message).
+    if (await isPaused(tx)) {
+      await tx.update(messages).set({ status: "dropped" }).where(inArray(messages.id, ids));
+      return { outcome: "paused", reply: null };
+    }
     const turnAway = async (event: "cool_off" | "budget_exhausted", reply: ReplyKey, windowMinutes: number, detail: Record<string, unknown>) => {
       await tx.update(messages).set({ status: "dropped" }).where(inArray(messages.id, ids));
       // Say so once per window, not on every batch, so a flood doesn't turn

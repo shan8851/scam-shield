@@ -8,6 +8,12 @@ import { senderKey } from "../../core/identity.js";
 export interface TelegramUpdate {
   update_id: number;
   message?: TelegramMessage;
+  callback_query?: {
+    id: string;
+    from: { id: number };
+    data?: string;
+    message?: { message_id: number; chat: { id: number } };
+  };
 }
 
 interface TelegramMessage {
@@ -29,6 +35,7 @@ interface TelegramMessage {
 export type ParsedUpdate =
   | { type: "forward"; chatId: number; forward: Forward }
   | { type: "command"; chatId: number; command: string; sender: Forward["sender"] }
+  | { type: "button"; callbackId: string; fromKey: string; data: string; chatId: number; messageId: number }
   | { type: "ignore"; reason: string };
 
 /**
@@ -38,6 +45,19 @@ export type ParsedUpdate =
  * the order screenshots were sent in.
  */
 export function parseUpdate(update: TelegramUpdate, receivedAt: Date = new Date()): ParsedUpdate {
+  const cb = update.callback_query;
+  if (cb) {
+    if (!cb.data || !cb.message) return { type: "ignore", reason: "button without data" };
+    return {
+      type: "button",
+      callbackId: cb.id,
+      fromKey: senderKey("tg", cb.from.id),
+      data: cb.data,
+      chatId: cb.message.chat.id,
+      messageId: cb.message.message_id,
+    };
+  }
+
   const m = update.message;
   if (!m) return { type: "ignore", reason: "not a new message" };
   if (m.chat.type !== "private") return { type: "ignore", reason: "not a private chat" };
@@ -47,6 +67,7 @@ export function parseUpdate(update: TelegramUpdate, receivedAt: Date = new Date(
     key: senderKey("tg", m.from.id),
     displayName: [m.from.first_name, m.from.last_name].filter(Boolean).join(" ") || undefined,
     username: m.from.username,
+    contactRef: String(m.chat.id),
   };
 
   if (m.text?.startsWith("/") && !m.forward_origin) {

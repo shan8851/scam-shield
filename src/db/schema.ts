@@ -17,7 +17,9 @@ import {
  * numbers and usernames are never stored for decided senders.
  *
  * - `pending`: messaged once, waiting for an approve or deny. Only pending
- *   rows keep `displayName` and `username`, so the admin can tell who it is.
+ *   rows keep `displayName`, `username` and `contactRef` (the channel's chat
+ *   ID, used once to welcome them if approved), so the admin can tell who it
+ *   is. All three are cleared when the admin decides.
  * - `allowed`: invited; their messages reach the gate's limits.
  * - `denied`: ignored silently from now on.
  */
@@ -28,6 +30,7 @@ export const senders = pgTable("senders", {
   nickname: text("nickname"),
   displayName: text("display_name"),
   username: text("username"),
+  contactRef: text("contact_ref"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
 });
@@ -102,3 +105,13 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_log_sender_event_at_idx").on(t.senderId, t.event, t.at)],
 );
+
+/**
+ * Runtime switches the admin can change without a redeploy. Today just one:
+ * `paused`, the kill switch. Every change is audit-logged.
+ */
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

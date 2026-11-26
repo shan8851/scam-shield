@@ -13,7 +13,7 @@ export type ForwardKind = "text" | "image" | "voice" | "document" | "video" | "o
 export interface Forward {
   /** The channel's own ID for this delivery; unique, used to drop duplicates. */
   externalId: string;
-  sender: { key: string; displayName?: string; username?: string };
+  sender: { key: string; displayName?: string; username?: string; contactRef?: string };
   kind: ForwardKind;
   text?: string;
   /** Image bytes, in memory only (the CLI). */

@@ -39,6 +39,35 @@ export const fixedReplies = {
 
 export type ReplyKey = keyof typeof fixedReplies;
 
+// --- Messages to the admin ----------------------------------------------
+// Sent as plain text, because they include names and usernames people chose.
+
+const who = (p: { displayName: string | null; username: string | null }) =>
+  [p.displayName ?? "Someone", p.username ? `(@${p.username})` : ""].filter(Boolean).join(" ");
+
+export const adminText = {
+  newRequest: (p: { displayName: string | null; username: string | null }) => `New request: ${who(p)} wants to use the bot.`,
+  approved: (p: { displayName: string | null; username: string | null }) => `✅ Approved ${who(p)}.`,
+  denied: (p: { displayName: string | null; username: string | null }) => `❌ Denied ${who(p)}.`,
+  alreadyDecided: "That request has already been handled.",
+  noPending: "No one is waiting.",
+  pendingHeader: (n: number) => `${n} waiting:`,
+  paused: "⏸ Paused. Nothing will be checked until you send /resume.",
+  resumed: "▶️ Resumed. Checks are back on.",
+  status: (s: { paused: boolean; checks24h: number; failed24h: number; tokens24h: number; pending: number; allowed: number }) =>
+    [
+      s.paused ? "⏸ Paused" : "▶️ Running",
+      `Last 24 hours: ${s.checks24h} checks, ${s.failed24h} failed, ${s.tokens24h.toLocaleString("en-GB")} tokens`,
+      `People: ${s.allowed} allowed, ${s.pending} waiting`,
+    ].join("\n"),
+  approveButton: "✅ Approve",
+  denyButton: "❌ Deny",
+};
+
+/** What an approved person is told, so they know they can start. */
+export const approvedWelcome =
+  "You're in. Forward me anything that looks suspicious: a text, an email, a screenshot or a link.";
+
 // --- Verdict replies ------------------------------------------------------
 
 export const verdictHeader: Record<Verdict, string> = {
