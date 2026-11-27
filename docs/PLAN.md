@@ -38,7 +38,7 @@ An invite-only Telegram bot that friends, family and colleagues forward suspicio
 
 ### Runtime
 
-- **Next.js on Vercel, Postgres on Neon**, both on free tiers. Next.js serves the webhook route and the daily cron; there is no web UI.
+- **Plain Vercel Functions, Postgres on Neon**, both on free tiers: one function for the webhook and one for the daily cron. There is no web UI, so no framework.
 - All state lives in Postgres: senders, messages, checks, settings (the kill switch), audit log, traces. Locally and in CI the same schema runs on PGlite (Postgres compiled to run in-process).
 - **Senders are stored as keyed hashes** (HMAC-SHA256 of a channel-qualified sender ID, such as the Telegram user ID, with the secret in the environment only). Replies go to the chat in the incoming update, which exists only in memory for that run. Pending senders keep a display name and username until decided.
 - **The gate counts check rows in sliding windows** inside one transaction holding one advisory lock: a lock, a count, an insert. Decisions are serialised, which is fine at this volume and makes the limits race-proof. The lock is proven against real Postgres on Neon, not only PGlite.
@@ -238,9 +238,9 @@ One PR per step, each small enough to read in the GitHub UI:
 2. **Agent:** loop, hooks, the two lookup tools, `submit_verdict`. *(done)*
 3. **Replies:** templates and signal copy. *(done)*
 4. **Eval:** 42 cases and the CI gate. *(done)*
-5. **Telegram:** Next.js on Vercel and Neon, the webhook with its secret token and update dedupe, channel-qualified sender hashes, photo download, the gathering window, and the gate's lock proven on Neon.
-6. **Governance over Telegram:** approve and deny buttons, `/pause` and `/resume`, `/pending` and `/status`, alerts, the retention cron, and `pnpm cli trace`.
-7. **Launch:** the bot live, invites sent, real forwards.
+5. **Telegram:** plain Vercel Functions and Neon, the webhook with its secret token and update dedupe, channel-qualified sender hashes, photo download, the gathering window, and the gate's lock proven on Neon. *(done)*
+6. **Governance over Telegram:** approve and deny buttons, `/pause` and `/resume`, `/pending` and `/status`, alerts, the retention cron, and `pnpm cli trace`. *(done)*
+7. **Launch:** invites sent, real forwards.
 
 ## Later, not v1
 
