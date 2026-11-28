@@ -103,12 +103,12 @@ export const signalLine: Record<Signal, string> = {
     "It asks for payment in a way real organisations don't use, like gift cards, crypto or a \"safe account\".",
   asks_for_personal_or_financial_details: "It asks for personal or bank details. Don't send them.",
   asks_to_pay_through_link:
-    "It asks you to pay a fee through its link. Couriers and government services don't collect fees by text.",
-  link_does_not_match_sender: "The link doesn't go where it claims to. Don't click it.",
+    "It asks you to pay a fee through its link. If you really owe something, pay it on the organisation's own website, not through a link in a message.",
+  link_does_not_match_sender: "The link isn't to the organisation's own website. Don't click it.",
   impersonates_authority: "It claims to be {org}, but the details don't match.",
   moves_to_another_app: "It wants to move you to another app, away from where it started.",
-  threatens_consequences: "It threatens you with trouble if you don't act. Real organisations don't do that by message.",
-  too_good_to_be_true: "The offer is too good to be true.",
+  threatens_consequences: "It threatens you with trouble if you don't act. Scammers use fear to rush you.",
+  too_good_to_be_true: "The offer looks too good to be true.",
   shortened_link: "It uses a shortened link, so where it leads can't be checked.",
   urgency: "It's rushing you. Scammers want you to act before you think.",
 };

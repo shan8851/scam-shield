@@ -113,6 +113,21 @@ describe("preSend", () => {
     expect(await preSend(flagged, genuine)).toMatchObject({ ok: true, value: { verdict: "suspicious" } });
   });
 
+  it("upgrades 'suspicious' to a scam when a weeks-old domain backs an impersonation", async () => {
+    const young = state({ lookupResults: [{ domain: "workwithkestrel.online", status: "ok", registered: "2026-11-09", ageDays: 19 }] });
+    const v: VerdictSubmission = { verdict: "suspicious", signals: ["impersonates_authority"], impersonating: "employer_or_recruiter", next_step: "contact_through_official_channel" };
+    expect(await preSend(young, v)).toMatchObject({ ok: true, value: { verdict: "likely_scam" } });
+    expect(await preSend(young, { ...v, signals: ["link_does_not_match_sender"] })).toMatchObject({ ok: true, value: { verdict: "likely_scam" } });
+  });
+
+  it("leaves 'suspicious' alone without both a young domain and an impersonation signal", async () => {
+    const v: VerdictSubmission = { verdict: "suspicious", signals: ["too_good_to_be_true"], impersonating: "none", next_step: "ask_for_details_in_same_app" };
+    const young = state({ lookupResults: [{ domain: "new.example", status: "ok", registered: "2026-11-20", ageDays: 8 }] });
+    expect(await preSend(young, v)).toEqual({ ok: true, value: v });
+    const old = state({ lookupResults: [{ domain: "calendly.com", status: "ok", registered: "2013-03-11", ageDays: 4997 }] });
+    expect(await preSend(old, { ...v, signals: ["impersonates_authority"], impersonating: "employer_or_recruiter" })).toMatchObject({ ok: true, value: { verdict: "suspicious" } });
+  });
+
   it("downgrades 'looks genuine' when a linked domain isn't registered", async () => {
     const missing = state({ lookupResults: [{ domain: "nope.example", status: "not_found", registered: null, ageDays: null }] });
     expect(await preSend(missing, genuine)).toMatchObject({ ok: true, value: { verdict: "suspicious" } });

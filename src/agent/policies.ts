@@ -169,12 +169,37 @@ export const genuineGuard: Hook<VerdictSubmission> = {
   },
 };
 
+/**
+ * "Suspicious" is upgraded to "likely a scam" when the lookups found a
+ * domain registered in the last few weeks and the model itself said the
+ * message impersonates someone or links away from them. A weeks-old
+ * lookalike domain for an organisation presenting itself as established is
+ * the clearest evidence the harness gets; this rule doesn't depend on the
+ * model weighing it.
+ */
+export const youngDomainEscalation: Hook<VerdictSubmission> = {
+  name: "young_domain_escalation",
+  run: (s, v) => {
+    if (v.verdict !== "suspicious") return { action: "allow" };
+    const impersonation = v.signals.includes("impersonates_authority") || v.signals.includes("link_does_not_match_sender");
+    const young = s.lookupResults.find(
+      (r) => "ageDays" in r && r.status === "ok" && r.ageDays !== null && r.ageDays < runLimits.youngDomainDays,
+    );
+    if (!impersonation || !young) return { action: "allow" };
+    return {
+      action: "replace",
+      value: { ...v, verdict: "likely_scam" },
+      reason: `upgraded to likely_scam: ${young.domain} registered ${(young as { ageDays: number }).ageDays} days ago, and the message impersonates someone`,
+    };
+  },
+};
+
 /** The hooks a check runs with, phase by phase, in order. */
 export const defaultHooks = {
   preModel: [turnCap, tokenCap, timeCap],
   preTool: [knownTool, lookupDomainPolicy, lookupCap],
   postTool: [resultWhitelist],
-  preSend: [validVerdict, genuineGuard],
+  preSend: [validVerdict, genuineGuard, youngDomainEscalation],
 };
 
 export function isLookup(call: ToolCall): boolean {
