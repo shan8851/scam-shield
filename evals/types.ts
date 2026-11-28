@@ -1,5 +1,5 @@
 import type { DomainAgeResult, UrlReputationResult } from "../src/agent/lookups";
-import type { NextStep } from "../src/agent/vocabulary";
+import type { NextStep, Signal } from "../src/agent/vocabulary";
 
 /**
  * One eval case. Cases are public, so they follow the repo's rules: invented
@@ -28,6 +28,12 @@ export interface EvalCase {
   };
   /** If set, other next steps add a small cost. */
   acceptableNextSteps?: NextStep[];
+  /**
+   * Signals that would make the reply say something untrue about this
+   * message (e.g. "it asks for bank details" when it asks for a fee). Each
+   * one given adds a small cost.
+   */
+  wrongSignals?: Signal[];
   notes?: string;
 }
 

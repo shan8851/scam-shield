@@ -40,6 +40,12 @@ describe("scoring a case", () => {
     expect(scoreCase({ ...base, acceptableNextSteps: ["forward_to_7726_and_delete"] }, done({}), "").cost).toBe(0.5);
   });
 
+  it("adds a small cost for each signal that would make the reply untrue", () => {
+    const c = { ...base, wrongSignals: ["asks_for_personal_or_financial_details" as const] };
+    expect(scoreCase(c, done({ signals: ["urgency", "asks_to_pay_through_link"] }), "").cost).toBe(0);
+    expect(scoreCase(c, done({ signals: ["urgency", "asks_for_personal_or_financial_details"] }), "").cost).toBe(0.5);
+  });
+
   it("scores a failed check like a cautious verdict", () => {
     const failed: CheckOutcome = { status: "failed", reason: "x", trace: [], tokens: 0, turns: 1 };
     expect(scoreCase(base, failed, "").cost).toBe(2);

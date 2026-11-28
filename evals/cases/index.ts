@@ -6,6 +6,7 @@ import bank_spend_alert from "./bank-spend-alert";
 import calendar_link_phish from "./calendar-link-phish";
 import council_tax_email from "./council-tax-email";
 import delivery_dpd_genuine from "./delivery-dpd-genuine";
+import delivery_evri_fee_smish from "./delivery-evri-fee-smish";
 import delivery_royal_mail_genuine from "./delivery-royal-mail-genuine";
 import delivery_royal_mail_smish from "./delivery-royal-mail-smish";
 import energy_bill_email from "./energy-bill-email";
@@ -50,6 +51,7 @@ export const cases: EvalCase[] = [
   calendar_link_phish,
   council_tax_email,
   delivery_dpd_genuine,
+  delivery_evri_fee_smish,
   delivery_royal_mail_genuine,
   delivery_royal_mail_smish,
   energy_bill_email,
