@@ -39,6 +39,8 @@ export interface LoopDeps {
   lookups: Lookups;
   hooks?: typeof defaultHooks;
   now?: Date;
+  /** Milliseconds clock for the time cap; tests pass a fake one. */
+  clock?: () => number;
 }
 
 /**
@@ -54,10 +56,13 @@ export interface LoopDeps {
  */
 export async function runCheck(input: CheckInput, deps: LoopDeps): Promise<CheckOutcome> {
   const hooks = deps.hooks ?? defaultHooks;
+  const clock = deps.clock ?? Date.now;
+  const startedAt = clock();
   const state: RunState = {
     now: deps.now ?? new Date(),
     turns: 0,
     tokens: 0,
+    elapsedMs: 0,
     lookupsMade: 0,
     textDomains: domainsInText(input.text ?? ""),
     hasImages: input.images.length > 0,
@@ -90,6 +95,7 @@ export async function runCheck(input: CheckInput, deps: LoopDeps): Promise<Check
   let nudged = false;
 
   for (;;) {
+    state.elapsedMs = clock() - startedAt;
     const allowed = await phase("preModel", hooks.preModel, null);
     if (!allowed.ok) return finish({ status: "failed", reason: allowed.reason });
 

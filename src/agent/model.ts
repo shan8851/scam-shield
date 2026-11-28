@@ -22,8 +22,19 @@ export interface ModelClient {
  * call. Effort is medium: a verdict is a short judgement, and replies should
  * be quick. Automatic prompt caching makes later turns read earlier ones,
  * images included, at a fraction of the cost.
+ *
+ * The SDK's defaults (a 10-minute timeout, two retries) outlast the
+ * function's 120 s, so a slow call would be killed mid-check with no reply.
+ * One call here takes at most about 51 s (25 s, one retry); with the
+ * loop's 45 s time cap and the 5 s gathering window, a check finishes or
+ * fails inside 120 s.
  */
-export function anthropicModel(client: Anthropic = new Anthropic()): ModelClient {
+export const MODEL_TIMEOUT_MS = 25_000;
+export const MODEL_MAX_RETRIES = 1;
+
+export function anthropicModel(
+  client: Anthropic = new Anthropic({ timeout: MODEL_TIMEOUT_MS, maxRetries: MODEL_MAX_RETRIES }),
+): ModelClient {
   return {
     create: (request) =>
       client.beta.messages.create({

@@ -17,6 +17,11 @@ describe("preModel caps", () => {
     expect((await runPhase("preModel", defaultHooks.preModel, state({ turns: 6 }), null, [])).ok).toBe(false);
     expect((await runPhase("preModel", defaultHooks.preModel, state({ tokens: runLimits.maxTokens }), null, [])).ok).toBe(false);
   });
+
+  it("block a new model call once the time cap has passed", async () => {
+    expect((await runPhase("preModel", defaultHooks.preModel, state({ elapsedMs: runLimits.maxMs - 1 }), null, [])).ok).toBe(true);
+    expect(await runPhase("preModel", defaultHooks.preModel, state({ elapsedMs: runLimits.maxMs }), null, [])).toMatchObject({ ok: false, hook: "time_cap" });
+  });
 });
 
 describe("preTool policy", () => {
@@ -73,6 +78,12 @@ describe("preSend", () => {
   it("rejects a scam verdict with no signals to explain it", async () => {
     const v: VerdictSubmission = { verdict: "likely_scam", signals: [], impersonating: "hmrc", next_step: "dont_reply" };
     expect(await preSend(state(), v)).toMatchObject({ ok: false, hook: "valid_verdict" });
+  });
+
+  it("rejects a scam or suspicious verdict with no next step", async () => {
+    const v: VerdictSubmission = { verdict: "likely_scam", signals: ["urgency"], impersonating: "none", next_step: "none" };
+    expect(await preSend(state(), v)).toMatchObject({ ok: false, hook: "valid_verdict" });
+    expect(await preSend(state(), { ...v, verdict: "suspicious" })).toMatchObject({ ok: false, hook: "valid_verdict" });
   });
 
   it("rejects claiming impersonation without saying of whom", async () => {

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { auditLog, checks, messages, senders } from "../db/schema.js";
 import type { ReplyKey } from "../replies/copy.js";
@@ -157,13 +157,8 @@ export async function admit(
       .orderBy(asc(messages.receivedAt), asc(messages.id));
     if (queued.length === 0) return { outcome: "nothing_queued", reply: null };
 
-    const [latest] = await tx
-      .select({ id: messages.id })
-      .from(messages)
-      .where(and(eq(messages.senderId, senderId), eq(messages.status, "queued")))
-      .orderBy(desc(messages.receivedAt), desc(messages.id))
-      .limit(1);
-    if (opts.asOf && latest!.id !== opts.asOf) return { outcome: "superseded", reply: null };
+    const latest = queued[queued.length - 1]!;
+    if (opts.asOf && latest.id !== opts.asOf) return { outcome: "superseded", reply: null };
 
     const ids = queued.map((m) => m.id);
 

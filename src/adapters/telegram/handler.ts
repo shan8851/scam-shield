@@ -1,4 +1,4 @@
-import type { CheckInput, LoopDeps } from "../../agent/loop.js";
+import type { CheckInput, CheckOutcome, LoopDeps } from "../../agent/loop.js";
 import { alertFor, type AlertKind } from "../../core/alerts.js";
 import { markCrashed, runAdmittedCheck } from "../../core/check.js";
 import { admit, intake } from "../../core/gate.js";
@@ -42,22 +42,22 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
 
   if (parsed.type === "command") {
     const isAdmin = !!deps.adminKey && parsed.sender.key === deps.adminKey;
-    if (isAdmin && parsed.command in adminCommands) return adminCommands[parsed.command]!(deps, parsed.chatId);
+    if (isAdmin && Object.hasOwn(adminCommands, parsed.command)) return adminCommands[parsed.command]!(deps, parsed.chatId);
     if (parsed.command !== "start" && parsed.command !== "help") return log("unknown_command");
     const { reply, newPendingId } = await introduce(deps.db, parsed.sender, { secret: deps.secret, adminKey: deps.adminKey });
-    if (reply) await deps.api.sendMessage(parsed.chatId, fixedReplies[reply]);
-    if (newPendingId) {
-      await askAdmin(deps, newPendingId, parsed.sender);
-      await alertIf(deps, await alertFor(deps.db, "unknown_sender"));
-    }
+    if (newPendingId) await newSender(deps, newPendingId, parsed.sender);
+    if (reply) await bestEffort(log, "reply_failed", () => deps.api.sendMessage(parsed.chatId, fixedReplies[reply]));
     return;
   }
 
+  // From here on the intake is committed, so a failed send is logged rather
+  // than thrown: Telegram's redelivery would only be dropped as a duplicate,
+  // and the admin would never be asked about a new sender.
   const taken = await intake(deps.db, parsed.forward, { secret: deps.secret });
-  if (taken.reply) await deps.api.sendMessage(parsed.chatId, fixedReplies[taken.reply]);
-  if (taken.outcome === "unknown_sender") {
-    await askAdmin(deps, taken.senderId, parsed.forward.sender);
-    await alertIf(deps, await alertFor(deps.db, "unknown_sender"));
+  if (taken.outcome === "unknown_sender") await newSender(deps, taken.senderId, parsed.forward.sender);
+  if (taken.reply) {
+    const reply = taken.reply;
+    await bestEffort(log, "reply_failed", () => deps.api.sendMessage(parsed.chatId, fixedReplies[reply]));
   }
   if (taken.outcome !== "queued") return log(taken.outcome);
 
@@ -68,7 +68,23 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandlerDeps): P
   );
 }
 
+/** Runs a send whose failure shouldn't undo work already committed; logs it instead. */
+async function bestEffort(log: NonNullable<HandlerDeps["log"]>, event: string, work: () => Promise<unknown>): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    log(event, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 // --- Admin ----------------------------------------------------------------
+
+/** A new sender is pending: ask the admin about them, and raise the burst alert if due. */
+async function newSender(deps: HandlerDeps, senderId: string, sender: { displayName?: string; username?: string }) {
+  const log = deps.log ?? (() => {});
+  await bestEffort(log, "admin_request_failed", () => askAdmin(deps, senderId, sender));
+  await bestEffort(log, "alert_failed", async () => alertIf(deps, await alertFor(deps.db, "unknown_sender")));
+}
 
 function adminChatId(deps: HandlerDeps): number | null {
   return deps.adminKey ? Number(deps.adminKey.slice("tg:".length)) : null;
@@ -106,7 +122,7 @@ async function handleButton(press: Extract<ReturnType<typeof parseUpdate>, { typ
 
   const status = match[1] === "approve" ? "allowed" : "denied";
   const decided = await decideById(deps.db, match[2]!, status);
-  if (!decided || decided.previous !== "pending") {
+  if (!decided?.changed) {
     await deps.api.answerButton(press.callbackId, adminText.alreadyDecided);
     return;
   }
@@ -149,18 +165,21 @@ async function checkBurst(deps: HandlerDeps, chatId: number, senderId: string, m
   if (admitted.outcome !== "admitted") return;
 
   const check = { id: admitted.checkId!, senderId };
+  let outcome: CheckOutcome;
   try {
     const input = await buildInput(deps.api, admitted.batch!);
-    const outcome = await runAdmittedCheck(deps.db, check, input, deps.agent);
-    await deps.api.sendMessage(chatId, renderReply(outcome));
-    if (outcome.status === "failed") await alertIf(deps, await alertFor(deps.db, "check_failed"));
+    outcome = await runAdmittedCheck(deps.db, check, input, deps.agent);
   } catch (error) {
-    // Never leave someone waiting after "Checking…".
-    await deps.api.sendMessage(chatId, fixedReplies.checkFailed);
+    // Record the failure first, then never leave someone waiting after "Checking…".
     await markCrashed(deps.db, check, error instanceof Error ? error.message.slice(0, 200) : "crashed");
+    await deps.api.sendMessage(chatId, fixedReplies.checkFailed);
     await alertIf(deps, await alertFor(deps.db, "check_failed"));
     throw error;
   }
+  // The check is recorded by now; a failure past this point is a delivery
+  // problem, not a failed check, so it propagates without touching the row.
+  await deps.api.sendMessage(chatId, renderReply(outcome));
+  if (outcome.status === "failed") await alertIf(deps, await alertFor(deps.db, "check_failed"));
 }
 
 async function buildInput(api: TelegramApi, batch: NonNullable<Awaited<ReturnType<typeof admit>>["batch"]>): Promise<CheckInput> {

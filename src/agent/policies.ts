@@ -9,11 +9,13 @@ import {
 } from "./vocabulary.js";
 
 /**
- * Caps for one check: 6 model turns, 120k tokens, 5 lookups. A screenshot is
- * roughly 5–6k tokens and is re-sent on every turn (mostly from cache), so
- * the token cap leaves room for several screenshots; at most about 25p.
+ * Caps for one check: 6 model turns, 120k tokens, 45 s, 5 lookups. A
+ * screenshot is roughly 5–6k tokens and is re-sent on every turn (mostly
+ * from cache), so the token cap leaves room for several screenshots; at most
+ * about 25p. The time cap keeps a check inside the function's 120 s (see
+ * model.ts): no new model call starts after 45 s.
  */
-export const runLimits = { maxTurns: 6, maxTokens: 120_000, maxLookups: 5, youngDomainDays: 30 } as const;
+export const runLimits = { maxTurns: 6, maxTokens: 120_000, maxMs: 45_000, maxLookups: 5, youngDomainDays: 30 } as const;
 
 export const LOOKUP_TOOLS = ["check_domain_age", "check_url_reputation"] as const;
 export const VERDICT_TOOL = "submit_verdict";
@@ -33,6 +35,14 @@ export const tokenCap: Hook<null> = {
   run: (s) =>
     s.tokens >= runLimits.maxTokens
       ? { action: "block", reason: `token cap reached (${s.tokens}/${runLimits.maxTokens})` }
+      : { action: "allow" },
+};
+
+export const timeCap: Hook<null> = {
+  name: "time_cap",
+  run: (s) =>
+    s.elapsedMs >= runLimits.maxMs
+      ? { action: "block", reason: `time cap reached (${Math.round(s.elapsedMs / 1000)}s/${runLimits.maxMs / 1000}s)` }
       : { action: "allow" },
 };
 
@@ -117,6 +127,9 @@ export const validVerdict: Hook<VerdictSubmission> = {
     if (v.signals.includes("impersonates_authority") && v.impersonating === "none") {
       return { action: "block", reason: `"impersonates_authority" needs the organisation being impersonated, or drop the signal` };
     }
+    if (v.verdict !== "looks_genuine" && v.next_step === "none") {
+      return { action: "block", reason: `"${v.verdict}" needs a next step; "none" is only for looks_genuine` };
+    }
     if (v.verdict !== "looks_genuine" && v.signals.length === 0) {
       return { action: "block", reason: `"${v.verdict}" needs at least one signal to explain it` };
     }
@@ -157,7 +170,7 @@ export const genuineGuard: Hook<VerdictSubmission> = {
 
 /** The hooks a check runs with, phase by phase, in order. */
 export const defaultHooks = {
-  preModel: [turnCap, tokenCap],
+  preModel: [turnCap, tokenCap, timeCap],
   preTool: [knownTool, lookupDomainPolicy, lookupCap],
   postTool: [resultWhitelist],
   preSend: [validVerdict, genuineGuard],

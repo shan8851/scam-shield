@@ -3,7 +3,7 @@ import type { DomainAgeResult, UrlReputationResult } from "./lookups.js";
 /**
  * The hook layer. Four phases wrap every step of the agent loop:
  *
- *   preModel  before each model call     (turn and token caps)
+ *   preModel  before each model call     (turn, token and time caps)
  *   preTool   before each tool runs      (domain policy, lookup cap)
  *   postTool  after a tool returns       (strip results to known fields)
  *   preSend   before a verdict is used   (schema check, "looks genuine" guard)
@@ -33,6 +33,8 @@ export interface RunState {
   turns: number;
   /** Input plus output tokens used so far. */
   tokens: number;
+  /** Wall-clock milliseconds since the run started. */
+  elapsedMs: number;
   /** Lookups actually run so far. */
   lookupsMade: number;
   /** Public domains code found in the forwarded text. */
