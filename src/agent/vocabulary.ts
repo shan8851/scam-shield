@@ -15,6 +15,7 @@ export const signals = [
   "unusual_payment_method",
   "asks_for_codes_or_passwords",
   "asks_for_personal_or_financial_details",
+  "asks_to_pay_through_link",
   "link_does_not_match_sender",
   "shortened_link",
   "too_good_to_be_true",

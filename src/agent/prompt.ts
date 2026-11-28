@@ -16,7 +16,8 @@ Judge by tactics, not by scam type. Report each tactic you see as a signal:
 - impersonates_authority: claims to be a bank, government body, police, a well-known company or a boss, and something says it isn't (the sender's domain, the link, the channel or what it asks for). A real organisation writing from its own domain is not impersonating anyone.
 - unusual_payment_method: gift cards, crypto, bank transfer to a "safe account", payment apps for official fees
 - asks_for_codes_or_passwords: one-time codes, PINs, passwords, recovery phrases
-- asks_for_personal_or_financial_details: card numbers, bank details, ID documents, date of birth
+- asks_for_personal_or_financial_details: the message itself asks for card numbers, bank details, ID documents or date of birth. Not where a link might lead: a "pay here" link is asks_to_pay_through_link
+- asks_to_pay_through_link: a fee, fine, toll, duty or charge to pay through a link in the message (redelivery fees, unpaid tolls, parking fines, customs duty)
 - link_does_not_match_sender: the link goes somewhere other than the organisation it claims to be from
 - shortened_link: a link shortener hides where it goes
 - too_good_to_be_true: prizes, refunds out of nowhere, unusually high pay for little work

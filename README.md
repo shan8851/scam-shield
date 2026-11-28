@@ -4,7 +4,7 @@ An invite-only Telegram bot that people forward suspicious messages to. It repli
 
 It's built as a small, governed agent harness: the plain Anthropic SDK, an agent loop written here, and a hand-written policy layer around it (a gate that runs before any model call, pre and post-tool hooks, approvals, budgets and an append-only audit log). The model never writes a word the user sees; replies come from fixed templates.
 
-> **Status: in development.** The gate, the agent loop and its hooks, the reply templates, a 42-case eval (gating CI) and the Telegram webhook are in place. Admin controls on Telegram (approvals, pause and resume, alerts) and the retention cron are live; the bot is in use with a few invited people. See [`docs/PLAN.md`](docs/PLAN.md) for the design and the build order.
+> **Status: in development.** The gate, the agent loop and its hooks, the reply templates, a 43-case eval (gating CI) and the Telegram webhook are in place. Admin controls on Telegram (approvals, pause and resume, alerts) and the retention cron are live; the bot is in use with a few invited people. See [`docs/PLAN.md`](docs/PLAN.md) for the design and the build order.
 
 ## Running it locally
 

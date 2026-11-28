@@ -19,6 +19,9 @@ export const cost: Record<EvalCase["label"], Record<Said, number>> = {
 /** A next step outside the case's acceptable list. */
 export const NEXT_STEP_COST = 0.5;
 
+/** Each signal the case lists as wrong for it: the reply would say something untrue. */
+export const WRONG_SIGNAL_COST = 0.5;
+
 export const passBar = { maxAverageCost: 0.5, maxFalseAlarmRate: 0.2 } as const;
 
 export interface CaseResult {
@@ -39,6 +42,9 @@ export function scoreCase(c: EvalCase, outcome: CheckOutcome, reply: string): Om
   let total = cost[c.label][said];
   if (outcome.status === "done" && c.acceptableNextSteps && !c.acceptableNextSteps.includes(outcome.verdict.next_step)) {
     total += NEXT_STEP_COST;
+  }
+  if (outcome.status === "done" && c.wrongSignals) {
+    total += outcome.verdict.signals.filter((s) => c.wrongSignals!.includes(s)).length * WRONG_SIGNAL_COST;
   }
 
   const hardFailures: string[] = [];

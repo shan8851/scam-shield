@@ -16,6 +16,7 @@ export default {
       }
     }
   },
+  "wrongSignals": ["asks_for_personal_or_financial_details"],
   "acceptableNextSteps": [
     "forward_to_7726_and_delete",
     "dont_reply",

@@ -12,4 +12,5 @@ export default {
     urlReputation: { "royalmail-redelivery-uk.com": { status: "unavailable", threats: [] } },
   },
   acceptableNextSteps: ["forward_to_7726_and_delete", "dont_reply", "dont_click_or_move_apps", "contact_through_official_channel"],
+  wrongSignals: ["asks_for_personal_or_financial_details"],
 } satisfies EvalCase;

@@ -102,6 +102,8 @@ export const signalLine: Record<Signal, string> = {
   unusual_payment_method:
     "It asks for payment in a way real organisations don't use, like gift cards, crypto or a \"safe account\".",
   asks_for_personal_or_financial_details: "It asks for personal or bank details. Don't send them.",
+  asks_to_pay_through_link:
+    "It asks you to pay a fee through its link. Couriers and government services don't collect fees by text.",
   link_does_not_match_sender: "The link doesn't go where it claims to. Don't click it.",
   impersonates_authority: "It claims to be {org}, but the details don't match.",
   moves_to_another_app: "It wants to move you to another app, away from where it started.",
@@ -118,6 +120,7 @@ export const signalPriority: readonly Signal[] = [
   "asks_to_sign_in_or_connect_wallet",
   "unusual_payment_method",
   "asks_for_personal_or_financial_details",
+  "asks_to_pay_through_link",
   "link_does_not_match_sender",
   "impersonates_authority",
   "moves_to_another_app",
