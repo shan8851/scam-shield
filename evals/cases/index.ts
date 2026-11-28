@@ -27,6 +27,7 @@ import job_chain_3_assignment from "./job-chain-3-assignment";
 import job_genuine_plain_recruiter from "./job-genuine-plain-recruiter";
 import job_genuine_wallet_recruiter from "./job-genuine-wallet-recruiter";
 import job_genuine_wallet_recruiter_messy from "./job-genuine-wallet-recruiter-messy";
+import job_lookalike_exchange_recruiter from "./job-lookalike-exchange-recruiter";
 import job_staking_recruiter from "./job-staking-recruiter";
 import job_task_scam from "./job-task-scam";
 import job_vc_advisor_telegram from "./job-vc-advisor-telegram";
@@ -72,6 +73,7 @@ export const cases: EvalCase[] = [
   job_genuine_plain_recruiter,
   job_genuine_wallet_recruiter,
   job_genuine_wallet_recruiter_messy,
+  job_lookalike_exchange_recruiter,
   job_staking_recruiter,
   job_task_scam,
   job_vc_advisor_telegram,

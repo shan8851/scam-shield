@@ -108,9 +108,11 @@ A bot that only ever says "scam" or "check it yourself" is not useful, so a mess
 
 **The "looks genuine" guard** runs in the pre-send hook. The verdict is downgraded to **suspicious** if:
 - the model flagged any signal; or
-- a lookup came back bad (a flagged URL, or a domain registered within about 30 days).
+- a lookup came back bad (a flagged URL, a domain registered within about 30 days, or a domain that isn't registered).
 
 The guard does not try to prove a message is genuine. It stops the model contradicting its own evidence, which is what an injected message would aim for.
+
+**The young-domain escalation** runs after it, in the same hook phase. A **suspicious** verdict becomes **likely a scam** when a lookup found a domain registered within about 30 days and the model flagged impersonation or a link that isn't the organisation's own. That combination is the clearest evidence the harness gets, so the rule is enforced in code rather than left to the model to weigh. Changing the prompt to say it instead shifted verdicts on unrelated eval cases.
 
 ### What the model returns
 
@@ -181,6 +183,7 @@ Set in config, not code:
 - Audit log and trace metadata (verdict, signals, rules hit, timings, tokens) are kept.
 - **Traces also keep the domains that were looked up** (the registrable domain only, never the full link or any message text), tied to the sender's internal ID. That's a deliberate trade-off: they're almost all scam domains or well-known brands, and they're what makes a run debuggable from its trace. Scrubbing them after 30 days is the fix if the bot ever goes beyond friends and family.
 - A message of a kind v1 can't read (a voice note, a document) is dropped on arrival and its caption is never stored.
+- Images are never stored, only Telegram's file reference, which goes with the message after 30 days. A screenshot can be re-fetched from Telegram within that window if a check needs debugging. Real screenshots never become eval fixtures as they are anyway: cases are rewritten and rendered from templates.
 - Checks still marked running after 10 minutes (a function killed mid-check) are marked failed by the same cron.
 - Anything committed to the repo, eval fixtures included, follows the public repository rules below.
 

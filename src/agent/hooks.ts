@@ -6,7 +6,8 @@ import type { DomainAgeResult, UrlReputationResult } from "./lookups.js";
  *   preModel  before each model call     (turn, token and time caps)
  *   preTool   before each tool runs      (domain policy, lookup cap)
  *   postTool  after a tool returns       (strip results to known fields)
- *   preSend   before a verdict is used   (schema check, "looks genuine" guard)
+ *   preSend   before a verdict is used   (schema check, "looks genuine" guard,
+ *                                        young-domain escalation)
  *
  * A hook looks at the context and the value passing through and returns one
  * decision: allow (optionally with a note), block with a reason, or replace
