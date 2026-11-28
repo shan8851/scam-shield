@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { senders } from "../db/schema.js";
 import { audit } from "./audit.js";
@@ -34,24 +34,24 @@ async function decideSender(
 ): Promise<string> {
   const now = opts.now ?? new Date();
   const senderHash = hashSender(key, opts.secret);
-  const decided = {
-    status,
-    nickname: opts.nickname ?? null,
-    displayName: null,
-    username: null,
-    contactRef: null,
-    decidedAt: now,
-  };
+  const decided = { ...decidedFields(status, now), nickname: opts.nickname ?? null };
   return db.transaction(async (tx) => {
     const [row] = await tx
       .insert(senders)
       .values({ senderHash, ...decided })
       .onConflictDoUpdate({ target: senders.senderHash, set: decided })
       .returning({ id: senders.id });
-    await audit(tx, status === "allowed" ? "sender_allowed" : "sender_denied", row!.id, undefined, now);
+    await audit(tx, decisionEvent(status), row!.id, undefined, now);
     return row!.id;
   });
 }
+
+/** What a decision writes, whichever way it's made: the status, and the pending details cleared. */
+function decidedFields(status: "allowed" | "denied", now: Date) {
+  return { status, displayName: null, username: null, contactRef: null, decidedAt: now };
+}
+
+const decisionEvent = (status: "allowed" | "denied") => (status === "allowed" ? "sender_allowed" : "sender_denied");
 
 /** Senders waiting for a decision, as the admin sees them. */
 export async function listPending(db: Db) {
@@ -71,23 +71,31 @@ export async function listPending(db: Db) {
  * The admin approves or denies a pending sender from a button. Returns who
  * it was (for the admin's confirmation) and where to welcome them, then
  * clears those details: decided senders keep only their hash.
+ *
+ * Only a pending sender can be decided this way. Buttons outlive their
+ * request (the original message and every /pending copy keep theirs), so a
+ * stale press on someone already decided changes nothing: `changed` is
+ * false and nothing is written.
  */
 export async function decideById(
   db: Db,
   senderId: string,
   status: "allowed" | "denied",
   opts: { now?: Date } = {},
-): Promise<{ displayName: string | null; username: string | null; contactRef: string | null; previous: string } | null> {
+): Promise<{ displayName: string | null; username: string | null; contactRef: string | null; changed: boolean } | null> {
   const now = opts.now ?? new Date();
   return db.transaction(async (tx) => {
     const [row] = await tx.select().from(senders).where(eq(senders.id, senderId));
     if (!row) return null;
-    await tx
+    const who = { displayName: row.displayName, username: row.username, contactRef: row.contactRef };
+    const updated = await tx
       .update(senders)
-      .set({ status, displayName: null, username: null, contactRef: null, decidedAt: now })
-      .where(eq(senders.id, senderId));
-    await audit(tx, status === "allowed" ? "sender_allowed" : "sender_denied", senderId, { by: "admin" }, now);
-    return { displayName: row.displayName, username: row.username, contactRef: row.contactRef, previous: row.status };
+      .set(decidedFields(status, now))
+      .where(and(eq(senders.id, senderId), eq(senders.status, "pending")))
+      .returning({ id: senders.id });
+    if (updated.length === 0) return { ...who, changed: false };
+    await audit(tx, decisionEvent(status), senderId, { by: "admin" }, now);
+    return { ...who, changed: true };
   });
 }
 

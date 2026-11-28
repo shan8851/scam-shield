@@ -1,5 +1,3 @@
-import type { ImageInput } from "../agent/loop.js";
-
 /**
  * A message as the core sees it, whatever channel it came from. Channel
  * adapters (the CLI, Telegram) turn their own payloads into this.
@@ -16,8 +14,6 @@ export interface Forward {
   sender: { key: string; displayName?: string; username?: string; contactRef?: string };
   kind: ForwardKind;
   text?: string;
-  /** Image bytes, in memory only (the CLI). */
-  images?: ImageInput[];
   /** Channel references to images (Telegram file IDs), fetched at check time. */
   mediaRefs?: string[];
   /** The message was forwarded from somewhere else. */

@@ -32,6 +32,7 @@ export const state = (over: Partial<RunState> = {}): RunState => ({
   now: new Date("2026-11-20T12:00:00Z"),
   turns: 0,
   tokens: 0,
+  elapsedMs: 0,
   lookupsMade: 0,
   textDomains: [],
   hasImages: false,

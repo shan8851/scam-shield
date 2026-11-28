@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { runCheck, type CheckInput, type CheckOutcome, type LoopDeps } from "../agent/loop.js";
 import type { Db } from "../db/client.js";
 import { checks } from "../db/schema.js";
@@ -45,11 +45,15 @@ export async function runAdmittedCheck(
 /**
  * Records a check that crashed before the agent could finish (an image
  * download failed, say), so it counts as failed rather than sitting at
- * "running" forever.
+ * "running" forever. A check that already has an outcome is left alone.
  */
 export async function markCrashed(db: Db, check: { id: string; senderId: string }, reason: string, now: Date = new Date()): Promise<void> {
   await db.transaction(async (tx) => {
-    await tx.update(checks).set({ status: "failed", finishedAt: now, failure: reason }).where(eq(checks.id, check.id));
-    await audit(tx, "check_failed", check.senderId, { checkId: check.id, reason }, now);
+    const updated = await tx
+      .update(checks)
+      .set({ status: "failed", finishedAt: now, failure: reason })
+      .where(and(eq(checks.id, check.id), eq(checks.status, "running")))
+      .returning({ id: checks.id });
+    if (updated.length > 0) await audit(tx, "check_failed", check.senderId, { checkId: check.id, reason }, now);
   });
 }

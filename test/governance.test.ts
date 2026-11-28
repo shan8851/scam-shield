@@ -52,9 +52,23 @@ describe("retention", () => {
     await intake(db, forward(numbers.stranger, t0, { sender: { key: numbers.stranger, displayName: "Stranger", contactRef: "123" } }), { secret, now: t0 });
 
     const result = await applyRetention(db, minutes(t0, 31 * 24 * 60));
-    expect(result).toEqual({ messages: 1, pendingCleared: 1 });
+    // The month-old check never finished, so the sweep marks it failed too.
+    expect(result).toEqual({ messages: 1, pendingCleared: 1, staleChecks: 1 });
     expect((await db.select().from(messages)).map((m) => m.text)).toEqual(["recent message"]);
     expect(await db.select().from(checks)).toHaveLength(1);
+  });
+
+  it("marks checks stuck at 'running' as failed, leaving recent and finished ones alone", async () => {
+    const sender = await allowSender(db, numbers.alice, { secret, now: t0 });
+    await db.insert(checks).values([
+      { senderId: sender, createdAt: t0 },
+      { senderId: sender, createdAt: minutes(t0, 55) },
+      { senderId: sender, createdAt: t0, status: "done" },
+    ]);
+    expect((await applyRetention(db, minutes(t0, 60))).staleChecks).toBe(1);
+    const rows = await db.select().from(checks).orderBy(checks.createdAt);
+    expect(rows.map((c) => c.status).sort()).toEqual(["done", "failed", "running"]);
+    expect(await alertFor(db, "check_failed", minutes(t0, 60))).toBeNull();
   });
 
   it("clears a pending sender's name, username and chat ID after 30 days undecided", async () => {

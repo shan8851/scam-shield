@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type Anthropic from "@anthropic-ai/sdk";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ImageInput } from "../src/agent/loop";
@@ -7,8 +8,9 @@ import type { TelegramApi } from "../src/adapters/telegram/api";
 import { handleUpdate, type HandlerDeps } from "../src/adapters/telegram/handler";
 import { parseUpdate, type TelegramUpdate } from "../src/adapters/telegram/update";
 import { allowSender } from "../src/core/senders";
+import { hashSender } from "../src/core/identity";
 import type { Db } from "../src/db/client";
-import { checks } from "../src/db/schema";
+import { auditLog, checks, senders } from "../src/db/schema";
 import { adminText, approvedWelcome, fixedReplies } from "../src/replies/copy";
 import { freshDb, secret } from "./helpers";
 
@@ -167,6 +169,50 @@ describe("the webhook handler", () => {
   });
 });
 
+describe("the webhook handler when Telegram fails", () => {
+  it("keeps a finished check as done when delivering the verdict fails", async () => {
+    deps.api = {
+      ...api,
+      async sendMessage(chatId, text, opts) {
+        if (text.includes("Likely a scam")) throw new Error("bot was blocked by the user");
+        return api.sendMessage(chatId, text, opts);
+      },
+    };
+    await deliver(message(ALICE, { text: "Royal Mail: pay £1.99 at https://rm-redeliver.top" }));
+    await settle();
+    const [check] = await db.select().from(checks);
+    expect(check?.status).toBe("done");
+    expect(sent.map((s) => s.text)).toEqual([fixedReplies.checking]);
+    const events = (await db.select().from(auditLog)).map((a) => a.event);
+    expect(events).toContain("check_done");
+    expect(events).not.toContain("check_failed");
+  });
+
+  it("still asks the admin about a stranger when replying to the stranger fails", async () => {
+    deps.api = {
+      ...api,
+      async sendMessage(chatId, text, opts) {
+        if (chatId === 666) throw new Error("chat not found");
+        return api.sendMessage(chatId, text, opts);
+      },
+    };
+    await expect(deliver(message(666, { text: "hello", from: { id: 666, first_name: "Robin" } }))).resolves.toBeUndefined();
+    expect(toAdmin()[0]?.text).toBe("New request: Robin wants to use the bot.");
+  });
+
+  it("still answers a stranger when asking the admin fails", async () => {
+    deps.api = {
+      ...api,
+      async sendMessage(chatId, text, opts) {
+        if (chatId === ADMIN) throw new Error("admin chat unavailable");
+        return api.sendMessage(chatId, text, opts);
+      },
+    };
+    await expect(deliver(message(667, { text: "hello" }))).resolves.toBeUndefined();
+    expect(sent).toEqual([{ chatId: 667, text: fixedReplies.inviteOnly }]);
+  });
+});
+
 function press(from: number, data: string): TelegramUpdate {
   return {
     update_id: ++updateId,
@@ -209,6 +255,23 @@ describe("admin controls", () => {
     await deliver(press(ADMIN, deny));
     expect(edits).toEqual([{ chatId: ADMIN, text: "❌ Denied Spam." }]);
     expect(sent.filter((s) => s.chatId === 555)).toHaveLength(1);
+  });
+
+  it("ignores a stale button: denying someone already approved changes nothing", async () => {
+    await deliver(message(556, { text: "hello", from: { id: 556, first_name: "Kim" } }));
+    const [approve, deny] = toAdmin()[0]!.buttons![0]!.map((b) => b.data);
+    await deliver(press(ADMIN, approve!));
+    await deliver(press(ADMIN, deny!));
+    expect(edits).toEqual([{ chatId: ADMIN, text: "✅ Approved Kim." }]);
+    const [row] = await db.select().from(senders).where(eq(senders.senderHash, hashSender("tg:556", secret)));
+    expect(row?.status).toBe("allowed");
+    const decisions = (await db.select().from(auditLog)).filter((a) => a.senderId === row!.id && a.event !== "unknown_sender");
+    expect(decisions.map((a) => a.event)).toEqual(["sender_allowed"]);
+  });
+
+  it("treats an admin command named after an object property as unknown", async () => {
+    await expect(deliver(message(ADMIN, { text: "/constructor" }))).resolves.toBeUndefined();
+    await expect(deliver(message(ADMIN, { text: "/__proto__" }))).resolves.toBeUndefined();
   });
 
   it("pauses and resumes checks, telling senders once while paused", async () => {

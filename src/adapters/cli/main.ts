@@ -76,7 +76,6 @@ switch (command) {
       sender: { key: senderKey("cli", values.from), displayName: values.name },
       kind: (values.kind as ForwardKind | undefined) ?? (images.length ? "image" : "text"),
       text: positionals.join(" ") || undefined,
-      images,
       receivedAt: new Date(),
     };
     const result = await gate(db, forward, { secret: senderHashSecret() });

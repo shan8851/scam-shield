@@ -134,6 +134,14 @@ describe("agent loop", () => {
     expect(outcome.trace.filter((e) => e.kind === "tool")).toHaveLength(5);
   });
 
+  it("stops at the time cap, so a slow check can't outlive the function", async () => {
+    const lookup = () => [call("check_domain_age", { domain: "royalmail-fees.com" })];
+    let t = 0;
+    const clock = () => (t += 20_000); // each model call appears to take 20 s
+    const outcome = await runCheck(smish, { model: scripted(Array.from({ length: 10 }, lookup)), lookups, now, clock });
+    expect(outcome).toMatchObject({ status: "failed", reason: "time cap reached (60s/45s)", turns: 2 });
+  });
+
   it("keeps message text out of the trace", async () => {
     const model = scripted([[call("check_domain_age", { domain: "royalmail-fees.com" })], [verdict({})]]);
     const outcome = await runCheck(smish, { model, lookups, now });
