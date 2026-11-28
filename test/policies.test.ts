@@ -112,4 +112,11 @@ describe("preSend", () => {
     const flagged = state({ lookupResults: [{ domain: "bad.example", status: "flagged", threats: ["SOCIAL_ENGINEERING"] }] });
     expect(await preSend(flagged, genuine)).toMatchObject({ ok: true, value: { verdict: "suspicious" } });
   });
+
+  it("downgrades 'looks genuine' when a linked domain isn't registered", async () => {
+    const missing = state({ lookupResults: [{ domain: "nope.example", status: "not_found", registered: null, ageDays: null }] });
+    expect(await preSend(missing, genuine)).toMatchObject({ ok: true, value: { verdict: "suspicious" } });
+    const unknown = state({ lookupResults: [{ domain: "google.de", status: "unavailable", registered: null, ageDays: null }] });
+    expect(await preSend(unknown, genuine)).toEqual({ ok: true, value: genuine });
+  });
 });

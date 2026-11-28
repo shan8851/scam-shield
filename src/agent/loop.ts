@@ -22,6 +22,7 @@ export interface CheckInput {
 /**
  * One line of a run's trace. It never holds message text: only what the
  * harness did and decided, so traces can outlive the 30-day content window.
+ * Lookups record the registrable domain they checked; that's kept too.
  */
 export type TraceEvent =
   | ({ kind: "hook" } & TraceEntry)

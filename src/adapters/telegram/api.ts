@@ -67,6 +67,8 @@ export function telegramApi(token: string, doFetch: typeof fetch = fetch): Teleg
       const res = await doFetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
       if (!res.ok) throw new Error(`Image download failed (${res.status})`);
       const bytes = Buffer.from(await res.arrayBuffer());
+      // file_size is optional, so check what actually arrived as well.
+      if (bytes.length > MAX_IMAGE_BYTES) throw new Error("Image too large");
       return { mediaType: mediaTypeFor(file.file_path), data: bytes.toString("base64") };
     },
   };

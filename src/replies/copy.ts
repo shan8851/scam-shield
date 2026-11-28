@@ -21,6 +21,8 @@ export const fixedReplies = {
   welcome:
     "Hi! Forward me anything that looks suspicious: a text, an email, a screenshot or a link. I'll tell you whether it looks like a scam, why, and what to do. I'll never ask for your details.",
   checking: "Checking…",
+  checkingPart:
+    "Checking… That was a lot in one go, so I'm only looking at the first part. Send the rest separately.",
   coolOff:
     "You've sent a lot of checks in a short time. Please wait a little and try again.",
   busyToday:

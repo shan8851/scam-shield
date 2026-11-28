@@ -22,4 +22,4 @@ Everything committed here, history included, is public. Before any commit:
 
 ## Stack
 
-TypeScript, Next.js, pnpm, vitest, Postgres on Neon, deployed on Vercel. Claude Sonnet 5.5 through the Anthropic SDK.
+TypeScript, plain Vercel Functions (no framework), pnpm, vitest, Postgres on Neon, deployed on Vercel. Claude Sonnet 5.5 through the Anthropic SDK.

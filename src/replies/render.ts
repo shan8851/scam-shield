@@ -31,7 +31,9 @@ export function renderVerdict(verdict: VerdictSubmission, lookups: LookupResult[
   const parts: string[] = [verdictHeader[verdict.verdict]];
 
   if (verdict.verdict === "looks_genuine") {
-    parts.push(lookups.length > 0 ? genuineReason.withLinks : genuineReason.noLinks);
+    // Only vouch for links a lookup actually answered for; "unavailable" tells us nothing.
+    const linksChecked = lookups.some((r) => r.status === "ok" || r.status === "clean");
+    parts.push(linksChecked ? genuineReason.withLinks : genuineReason.noLinks);
   } else {
     const reasons = [...signalLines(verdict), ...lookupFacts(lookups)];
     parts.push(reasons.map((r) => `• ${r}`).join("\n"));

@@ -179,6 +179,9 @@ Set in config, not code:
 
 - Forwarded text and images are deleted after **30 days** by a daily cron that runs one SQL delete.
 - Audit log and trace metadata (verdict, signals, rules hit, timings, tokens) are kept.
+- **Traces also keep the domains that were looked up** (the registrable domain only, never the full link or any message text), tied to the sender's internal ID. That's a deliberate trade-off: they're almost all scam domains or well-known brands, and they're what makes a run debuggable from its trace. Scrubbing them after 30 days is the fix if the bot ever goes beyond friends and family.
+- A message of a kind v1 can't read (a voice note, a document) is dropped on arrival and its caption is never stored.
+- Checks still marked running after 10 minutes (a function killed mid-check) are marked failed by the same cron.
 - Anything committed to the repo, eval fixtures included, follows the public repository rules below.
 
 ## Public repository

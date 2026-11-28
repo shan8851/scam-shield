@@ -26,9 +26,17 @@ describe("lookups", () => {
     expect(called).toBe(false);
   });
 
-  it("maps an RDAP 404 to not_found and a network failure to unavailable", async () => {
-    const notFound = liveLookups({ fetch: (async () => new Response("", { status: 404 })) as typeof fetch });
+  it("maps a registry 404 to not_found, rdap.org's own 404 and a network failure to unavailable", async () => {
+    const redirected404 = () => {
+      const res = new Response("", { status: 404 });
+      Object.defineProperty(res, "redirected", { value: true });
+      return res;
+    };
+    const notFound = liveLookups({ fetch: (async () => redirected404()) as typeof fetch });
     expect((await notFound.domainAge("nope.example", now)).status).toBe("not_found");
+    // rdap.org answers 404 itself, with no redirect, for TLDs it has no RDAP service for (google.de, say).
+    const noService = liveLookups({ fetch: (async () => new Response("", { status: 404 })) as typeof fetch });
+    expect((await noService.domainAge("google.de", now)).status).toBe("unavailable");
     const broken = liveLookups({ fetch: (async () => { throw new Error("offline"); }) as typeof fetch });
     expect((await broken.domainAge("x.example", now)).status).toBe("unavailable");
   });
