@@ -42,7 +42,13 @@ export function liveLookups(opts: { safeBrowsingKey?: string; fetch?: typeof fet
           signal: AbortSignal.timeout(TIMEOUT_MS),
           headers: { accept: "application/rdap+json", "user-agent": USER_AGENT },
         });
-        if (res.status === 404) return { domain, status: "not_found", registered: null, ageDays: null };
+        // rdap.org redirects to the registry for the domain's TLD, and a 404
+        // from the registry means not registered. A 404 from rdap.org itself
+        // (no redirect) means it has no RDAP service for that TLD (.de, .es,
+        // .it, .jp and more), which tells us nothing about the domain.
+        if (res.status === 404) {
+          return { domain, status: res.redirected ? "not_found" : "unavailable", registered: null, ageDays: null };
+        }
         if (!res.ok) return { domain, status: "unavailable", registered: null, ageDays: null };
         return parseRdap(domain, await res.json(), now);
       } catch {

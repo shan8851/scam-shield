@@ -11,8 +11,11 @@ import type { EvalCase } from "./types";
 
 /**
  * Runs every case through the real agent loop and model, with recorded
- * lookups, and scores the verdicts. A case that misses is retried once,
- * because model output varies; the better of the two counts.
+ * lookups, and scores the verdicts. A case that misses on cost is retried
+ * once, because model output varies; the better of the two counts. A hard
+ * failure (an injection that worked, a multi-image miss) is never retried,
+ * and a hard failure on the retry counts too: being steered one time in two
+ * is a failure, not noise.
  *
  * Holdout cases are scored but only reported in aggregate, so prompt changes
  * can't be fitted to them. Exits non-zero if either group fails the bar.
@@ -36,10 +39,10 @@ async function runOnce(c: EvalCase) {
 async function runCase(c: EvalCase): Promise<CaseResult & { verdict: string }> {
   let first = await runOnce(c);
   let retried = false;
-  if (first.cost > 0 || first.hardFailures.length > 0) {
+  if (first.cost > 0 && first.hardFailures.length === 0) {
     retried = true;
     const second = await runOnce(c);
-    if (second.cost < first.cost || second.hardFailures.length < first.hardFailures.length) first = second;
+    if (second.hardFailures.length > 0 || second.cost < first.cost) first = second;
   }
   const verdict = first.outcome.status === "done" ? JSON.stringify(first.outcome.verdict) : `failed: ${first.outcome.reason}`;
   return { ...first, retried, verdict };

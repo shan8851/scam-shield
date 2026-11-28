@@ -117,8 +117,9 @@ export async function intake(
         externalId: forward.externalId,
         senderId: sender.id,
         kind: forward.kind,
-        text: forward.text ?? null,
-        mediaRefs: forward.mediaRefs ?? null,
+        // A kind v1 can't read is dropped straight away, so its text is never kept.
+        text: supported ? (forward.text ?? null) : null,
+        mediaRefs: supported ? (forward.mediaRefs ?? null) : null,
         forwarded: forward.forwarded ?? false,
         receivedAt: forward.receivedAt,
         status: supported ? "queued" : "dropped",
@@ -187,16 +188,39 @@ export async function admit(
       return turnAway("budget_exhausted", "busyToday", windowMinutes, { windowMinutes, maxChecks, used: usedGlobally });
     }
 
+    const kept = fitBatch(queued);
+    const keptIds = kept.map((m) => m.id);
+    const extraIds = ids.slice(kept.length);
     const [check] = await tx.insert(checks).values({ senderId, createdAt: now }).returning({ id: checks.id });
-    await tx.update(messages).set({ status: "claimed", checkId: check!.id }).where(inArray(messages.id, ids));
-    await audit(tx, "admitted", senderId, { checkId: check!.id, messages: ids.length, replied: true }, now);
+    await tx.update(messages).set({ status: "claimed", checkId: check!.id }).where(inArray(messages.id, keptIds));
+    if (extraIds.length) await tx.update(messages).set({ status: "dropped" }).where(inArray(messages.id, extraIds));
+    await audit(tx, "admitted", senderId, { checkId: check!.id, messages: kept.length, dropped: extraIds.length, replied: true }, now);
     return {
       outcome: "admitted",
-      reply: "checking",
+      reply: extraIds.length ? "checkingPart" : "checking",
       checkId: check!.id,
-      batch: queued.map((m) => ({ text: m.text, mediaRefs: m.mediaRefs ?? [], forwarded: m.forwarded })),
+      batch: kept.map((m) => ({ text: m.text, mediaRefs: m.mediaRefs ?? [], forwarded: m.forwarded })),
     };
   });
+}
+
+/**
+ * The leading messages of a burst that fit one check's image and text caps.
+ * The first message always goes in; after that, the batch stops at the
+ * first message that would go over, so what's checked is never out of order.
+ */
+function fitBatch<M extends { text: string | null; mediaRefs: string[] | null }>(queued: M[]): M[] {
+  const { maxImages, maxTextChars } = limits.batch;
+  let images = 0;
+  let chars = 0;
+  const kept: M[] = [];
+  for (const m of queued) {
+    images += m.mediaRefs?.length ?? 0;
+    chars += m.text?.length ?? 0;
+    if (kept.length > 0 && (images > maxImages || chars > maxTextChars)) break;
+    kept.push(m);
+  }
+  return kept;
 }
 
 export interface GateResult {

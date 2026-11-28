@@ -10,7 +10,8 @@ export const RETENTION_DAYS = 30;
  * references) are deleted after 30 days, and a pending sender's name,
  * username and chat ID are cleared if no one has decided on them in that
  * time. Checks, verdicts, traces and the audit log are kept: none of them
- * hold message text.
+ * hold message text, though traces do keep the domains that were looked up
+ * (see docs/PLAN.md, Retention).
  *
  * It also sweeps up checks still "running" long after any function could
  * be (one killed mid-check by the platform), marking them failed so they

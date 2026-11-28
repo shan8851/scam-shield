@@ -70,6 +70,13 @@ describe("rendering a verdict", () => {
     expect(renderVerdict(v, [])).not.toContain("links");
   });
 
+  it("doesn't vouch for links when every lookup came back unavailable", () => {
+    const v: VerdictSubmission = { verdict: "looks_genuine", signals: [], impersonating: "none", next_step: "none" };
+    const unknownAge: LookupResult = { domain: "google.de", status: "unavailable", registered: null, ageDays: null };
+    const unknownRep: LookupResult = { domain: "google.de", status: "unavailable", threats: [] };
+    expect(renderVerdict(v, [unknownAge, unknownRep])).not.toContain("links");
+  });
+
   it("puts urgency above a shortened link", () => {
     const v: VerdictSubmission = { verdict: "suspicious", signals: ["shortened_link", "urgency"], impersonating: "none", next_step: "dont_reply" };
     const bullets = renderVerdict(v, []).split("\n").filter((l) => l.startsWith("• "));

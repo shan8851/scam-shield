@@ -65,6 +65,33 @@ describe("gathering a burst into one check", () => {
     expect(result.batch).toHaveLength(1);
   });
 
+  it("checks at most 6 screenshots at once, drops the rest and says so", async () => {
+    let last;
+    for (let i = 0; i < 9; i++) {
+      last = await take("", minutes(t0, i * 0.01), { kind: "image", text: undefined, mediaRefs: [`file-${i}`] });
+    }
+    const result = await admit(db, alice, { asOf: last!.messageId, now: minutes(t0, 0.2) });
+    expect(result).toMatchObject({ outcome: "admitted", reply: "checkingPart" });
+    expect(result.batch!.flatMap((m) => m.mediaRefs)).toEqual(["file-0", "file-1", "file-2", "file-3", "file-4", "file-5"]);
+    const statuses = (await db.select().from(messages)).map((m) => m.status);
+    expect(statuses.filter((s) => s === "dropped")).toHaveLength(3);
+  });
+
+  it("caps the text in one check too, but always checks the first message", async () => {
+    const a = await take("x".repeat(9_000), t0);
+    const b = await take("y".repeat(2_000), minutes(t0, 0.01));
+    const result = await admit(db, alice, { asOf: b.messageId, now: minutes(t0, 0.02) });
+    expect(result.reply).toBe("checkingPart");
+    expect(result.batch).toHaveLength(1);
+    expect(a.outcome).toBe("queued");
+  });
+
+  it("stores no text for a kind it can't read", async () => {
+    await take("caption on a voice note", t0, { kind: "voice" });
+    const [row] = await db.select().from(messages);
+    expect(row).toMatchObject({ status: "dropped", text: null });
+  });
+
   it("keeps the forwarded flag", async () => {
     const m = await take("forwarded text", t0, { forwarded: true });
     expect((await admit(db, alice, { asOf: m.messageId, now: t0 })).batch?.[0]?.forwarded).toBe(true);

@@ -151,6 +151,7 @@ export const genuineGuard: Hook<VerdictSubmission> = {
     if (v.signals.length > 0) reasons.push(`signals flagged: ${v.signals.join(", ")}`);
     for (const r of s.lookupResults) {
       if ("threats" in r && r.status === "flagged") reasons.push(`${r.domain} flagged by Safe Browsing`);
+      if ("ageDays" in r && r.status === "not_found") reasons.push(`${r.domain} is not registered`);
       if ("ageDays" in r && r.ageDays !== null && r.ageDays < runLimits.youngDomainDays) {
         reasons.push(`${r.domain} registered ${r.ageDays} days ago`);
       }
